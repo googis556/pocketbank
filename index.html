@@ -415,6 +415,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
         </div>
       </div>
     </div>
+       <div class="act-row" id="accActions">
+      <button class="act-btn dep" onclick="openTx('deposit')">💰 입금</button>
+      <button class="act-btn wit" onclick="openTx('withdraw')">💸 출금</button>
+      <button class="act-btn int" onclick="openInterestModal()">📈 이자</button>
+    </div>
+    <div class="act-row">
+      <button class="act-btn adj" onclick="openAdjust()">✏️ 잔액수정</button>
+      <button class="act-btn rat" onclick="openRateModal()">⚙️ 이자율</button>
+      <button class="act-btn edt" onclick="openEditAccName()">📝 통장명</button>
+    </div>
     <!-- 계모임 통장 구성원 -->
     <div id="gyeAccMembersWrap" style="display:none">
       <div class="card">
@@ -431,23 +441,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="sec-title" style="margin-top:10px">납입 현황</div>
       <div style="overflow-x:auto"><table class="payment-table" id="paymentTable"></table></div>
     </div>
-    <div id="autoWrap">
-      <div class="sec-title" style="margin-top:10px">
-        자동이체
-        <button class="add-btn" style="width:28px;height:28px;font-size:18px" onclick="openAddAutoTransfer()">+</button>
-      </div>
-      <div id="autoList"></div>
-    </div>
-    <div class="act-row" id="accActions">
-      <button class="act-btn dep" onclick="openTx('deposit')">💰 입금</button>
-      <button class="act-btn wit" onclick="openTx('withdraw')">💸 출금</button>
-      <button class="act-btn int" onclick="openInterestModal()">📈 이자</button>
-    </div>
-    <div class="act-row">
-      <button class="act-btn adj" onclick="openAdjust()">✏️ 잔액수정</button>
-      <button class="act-btn rat" onclick="openRateModal()">⚙️ 이자율</button>
-      <button class="act-btn edt" onclick="openEditAccName()">📝 통장명</button>
-    </div>
+ 
     <div id="accDetailTxWrap">
     <div class="sec-title" style="margin-top:11px">거래내역</div>
     <div class="tx-list" id="accDetailTxList"></div>
@@ -543,7 +537,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <span class="ti">🏠</span><span style="font-size:10px">홈</span>
     </button>
     <button class="tab-btn" id="tab-account" onclick="switchTab('account')">
-      <span class="ti">📒</span><span style="font-size:10px">통장</span>
+      <span class="ti">📒</span><span style="font-size:10px">조회</span>
     </button>
     <button class="tab-btn" id="tab-admin" onclick="switchTab('admin')" style="display:none">
       <span class="ti">⚙️</span><span style="font-size:10px">관리</span>
@@ -1295,7 +1289,11 @@ async function openAccDetail(accId){
       else showScreen('memberDetailScreen');
     };
   }
-  document.getElementById('accDetailTxWrap').style.display=fromAccount?'block':'none';
+  document.getElementById('accDetailTxWrap').style.display='block';
+document.getElementById('autoWrap').style.display=fromAccount?'none':'block';
+document.getElementById('accActions').style.display=fromAccount?'none':'flex';
+document.querySelector('#accDetailScreen .act-row:nth-child(2)').style.display=fromAccount?'none':'flex';
+document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
   showScreen('accDetailScreen');
 }
 
