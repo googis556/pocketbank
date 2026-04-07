@@ -1290,7 +1290,6 @@ async function openAccDetail(accId){
     };
   }
   document.getElementById('accDetailTxWrap').style.display='block';
-document.getElementById('autoWrap').style.display=fromAccount?'none':'block';
 document.getElementById('accActions').style.display=fromAccount?'none':'flex';
 document.querySelector('#accDetailScreen .act-row:nth-child(2)').style.display=fromAccount?'none':'flex';
 document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
@@ -1721,6 +1720,16 @@ async function regenInviteCode(){
     accs.forEach(a=>{
       html+=`<div class="account-card" onclick="openAccDetail('${a.id}')">
         <div class="acc-name">${m.users.nickname} · ${a.name}</div>
+        <div class="acc-balance">${fmt(a.balance)}</div>
+        <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
+      </div>`;
+    });
+  }
+    if(currentGroup.type==='gye'){
+    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
+    (gyeAccs||[]).forEach(a=>{
+      html+=`<div class="account-card" onclick="openAccDetail('${a.id}')">
+        <div class="acc-name">📒 ${a.name}</div>
         <div class="acc-balance">${fmt(a.balance)}</div>
         <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
       </div>`;
