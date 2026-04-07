@@ -1,0 +1,1887 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>포켓뱅크</title>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;900&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
+  --bg:#F8FAFF;--white:#FFFFFF;--warm:#F0F4FF;
+  --text:#1A1A2E;--text-sub:#6B7280;
+  --green:#16A34A;--red:#DC2626;--gold:#D97706;
+  --shadow:0 2px 16px rgba(26,115,232,0.10);
+  --radius:20px;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+
+/* Header */
+.header{background:var(--blue);color:white;padding:18px 20px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(26,115,232,0.3)}
+.header-title{font-size:20px;font-weight:900;letter-spacing:3px}
+.header-right{display:flex;align-items:center;gap:10px;font-size:13px}
+.logout-btn{background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:20px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif}
+
+/* Screens */
+.screen{display:none;padding:20px;padding-bottom:90px}.screen.active{display:block}
+
+/* Skeleton */
+.skeleton{background:linear-gradient(90deg,#e8eef8 25%,#f5f8ff 50%,#e8eef8 75%);background-size:200% 100%;animation:shimmer 1.5s infinite;border-radius:12px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skeleton-card{height:120px;margin-bottom:12px}
+.skeleton-row{height:60px;margin-bottom:8px}
+
+/* Login */
+.login-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#1A73E8 0%,#0D47A1 100%)}
+.login-logo{font-size:28px;font-weight:900;color:white;letter-spacing:4px;margin-bottom:4px}
+.login-sub{font-size:13px;color:rgba(255,255,255,0.7);margin-bottom:40px}
+.login-card{background:white;border-radius:24px;padding:32px 24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.login-card h3{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+.input-group{margin-bottom:14px}
+.input-group label{font-size:12px;color:var(--text-sub);margin-bottom:5px;display:block;font-weight:500}
+.input-group input{width:100%;border:2px solid #E5E7EB;border-radius:12px;padding:12px 16px;font-size:15px;font-family:'Noto Sans KR',sans-serif;color:var(--text);background:white;outline:none;transition:border-color 0.2s}
+.input-group input:focus{border-color:var(--blue)}
+.save-id-row{display:flex;align-items:center;gap:8px;margin-bottom:16px;font-size:13px;color:var(--text-sub)}
+.save-id-row input[type=checkbox]{width:16px;height:16px;cursor:pointer}
+.btn-login{width:100%;padding:14px;background:var(--blue);color:white;border:none;border-radius:12px;font-size:16px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer;position:relative;overflow:hidden}
+.progress-bar{position:absolute;bottom:0;left:0;height:3px;background:rgba(255,255,255,0.5);width:0%;transition:width 0.1s linear}
+.login-divider{text-align:center;margin:16px 0;font-size:13px;color:var(--text-sub)}
+.btn-register{width:100%;padding:12px;background:var(--blue-light);color:var(--blue);border:none;border-radius:12px;font-size:15px;font-weight:700;font-family:'Noto Sans KR',sans-serif;cursor:pointer}
+
+/* Progress bar for login */
+.login-progress{height:4px;background:rgba(255,255,255,0.3);border-radius:2px;margin-bottom:20px;overflow:hidden;display:none}
+.login-progress-fill{height:100%;background:white;width:0%;transition:width 0.05s linear;border-radius:2px}
+
+/* Group Select */
+.group-list{display:flex;flex-direction:column;gap:10px;margin-bottom:20px}
+.group-card{background:white;border-radius:16px;padding:18px;box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;gap:14px;transition:transform 0.15s;border:2px solid transparent}
+.group-card:active{transform:scale(0.98)}
+.group-card.selected{border-color:var(--blue)}
+.group-icon{width:48px;height:48px;border-radius:14px;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0}
+.group-info{flex:1}
+.group-name{font-size:16px;font-weight:700;margin-bottom:3px}
+.group-meta{font-size:12px;color:var(--text-sub)}
+.group-role{font-size:11px;background:var(--blue);color:white;padding:2px 8px;border-radius:10px;margin-left:auto;flex-shrink:0}
+
+/* Cards */
+.balance-card{background:linear-gradient(135deg,var(--blue) 0%,var(--blue-dark) 100%);border-radius:var(--radius);padding:26px;color:white;margin-bottom:16px;position:relative;overflow:hidden}
+.balance-card::after{content:'';position:absolute;right:-20px;top:-20px;width:120px;height:120px;border-radius:50%;background:rgba(255,255,255,0.08)}
+.balance-card .label{font-size:12px;opacity:0.8;margin-bottom:6px}
+.balance-card .amount{font-size:34px;font-weight:900;letter-spacing:-1px}
+.balance-card .interest-row{display:grid;grid-template-columns:1fr 1fr;gap:4px 10px;margin-top:14px;padding-top:14px;border-top:1px solid rgba(255,255,255,0.2);font-size:11px;opacity:0.9}
+.balance-card .val{color:#93C5FD;font-weight:700;font-size:12px}
+
+.card{background:white;border-radius:var(--radius);padding:18px;box-shadow:var(--shadow);margin-bottom:12px}
+
+/* Member cards */
+.member-card{background:white;border-radius:16px;padding:16px;box-shadow:var(--shadow);cursor:pointer;display:flex;align-items:center;gap:12px;margin-bottom:10px;transition:transform 0.15s}
+.member-card:active{transform:scale(0.98)}
+.member-info{flex:1}
+.member-name{font-size:16px;font-weight:700}
+.member-balance{font-size:20px;font-weight:900;color:var(--blue)}
+.member-meta{font-size:11px;color:var(--text-sub);margin-top:2px}
+
+/* Avatar */
+.avatar{border-radius:50%;background:var(--blue-light);display:flex;align-items:center;justify-content:center;overflow:hidden;flex-shrink:0}
+.avatar img{width:100%;height:100%;object-fit:cover;border-radius:50%}
+.avatar-edit{cursor:pointer;position:relative}
+.avatar-edit .edit-overlay{position:absolute;inset:0;background:rgba(0,0,0,0.35);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:14px;opacity:0;transition:opacity 0.2s}
+.avatar-edit:active .edit-overlay{opacity:1}
+
+/* Tx items */
+.tx-list{display:flex;flex-direction:column;gap:8px}
+.tx-item{background:white;border-radius:14px;padding:14px 16px;display:flex;align-items:center;gap:12px;box-shadow:0 1px 8px rgba(0,0,0,0.06)}
+.tx-icon{font-size:20px;width:36px;text-align:center;flex-shrink:0}
+.tx-info{flex:1;min-width:0}
+.tx-note{font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.tx-date{font-size:11px;color:var(--text-sub);margin-top:2px}
+.tx-right{text-align:right;flex-shrink:0}
+.tx-amt{font-weight:700;font-size:14px}
+.tx-amt.plus{color:var(--green)}.tx-amt.minus{color:var(--red)}.tx-amt.adjust{color:var(--gold)}
+.tx-bal{font-size:11px;color:var(--text-sub)}
+.tx-actions{display:flex;flex-direction:column;gap:3px;flex-shrink:0}
+.tx-btn{background:none;border:none;font-size:13px;cursor:pointer;padding:2px;opacity:0.3}
+.tx-btn:active{opacity:1}
+
+/* Action buttons */
+.action-row{display:flex;gap:8px;margin-bottom:8px}
+.action-btn{flex:1;padding:10px 4px;border-radius:12px;border:none;font-size:11px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;font-weight:700;transition:transform 0.1s}
+.action-btn:active{transform:scale(0.96)}
+.action-btn.dep{background:#DCFCE7;color:#16A34A}
+.action-btn.wit{background:#FEE2E2;color:#DC2626}
+.action-btn.int{background:#FEF3C7;color:#D97706}
+.action-btn.adj{background:#DBEAFE;color:#1D4ED8}
+.action-btn.rat{background:#F3E8FF;color:#7C3AED}
+.action-btn.edt{background:#F0FDF4;color:#15803D}
+.action-btn.str{background:#FFF7ED;color:#C2410C}
+
+/* Tab bar */
+.tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:white;display:flex;border-top:1px solid #E5E7EB;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 12px rgba(0,0,0,0.08)}
+.tab-btn{flex:1;padding:10px 0;border:none;background:none;font-size:9px;color:var(--text-sub);cursor:pointer;font-family:'Noto Sans KR',sans-serif;display:flex;flex-direction:column;align-items:center;gap:4px;position:relative;transition:color 0.2s}
+.tab-btn .ti{font-size:24px;line-height:1}
+.tab-btn.active{color:var(--blue)}
+.tab-badge{position:absolute;top:8px;right:calc(50% - 18px);width:8px;height:8px;background:#EF4444;border-radius:50%;display:none}
+.tab-badge.show{display:block}
+
+/* Modal */
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay.active{display:flex}
+.modal{background:white;border-radius:24px 24px 0 0;padding:28px 24px 40px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
+.modal h3{font-size:18px;font-weight:700;margin-bottom:20px;color:var(--text)}
+.input-group{margin-bottom:14px}
+.input-group label{font-size:12px;color:var(--text-sub);margin-bottom:5px;display:block;font-weight:500}
+.input-group input,.input-group select,.input-group textarea{width:100%;border:2px solid #E5E7EB;border-radius:12px;padding:11px 14px;font-size:15px;font-family:'Noto Sans KR',sans-serif;color:var(--text);background:white;outline:none;transition:border-color 0.2s}
+.input-group input:focus,.input-group textarea:focus{border-color:var(--blue)}
+.input-group textarea{resize:none;height:90px}
+.modal-btns{display:flex;gap:10px;margin-top:20px}
+.modal-btns .btn{flex:1;padding:13px;border-radius:12px;border:none;font-size:15px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;font-weight:700}
+.btn-primary{background:var(--blue);color:white}
+.btn-cancel{background:#F3F4F6;color:var(--text)}
+.btn-gold{background:var(--gold);color:white}
+.btn-green{background:var(--green);color:white}
+
+/* Segment */
+.segment{display:flex;background:#F3F4F6;border-radius:10px;padding:3px;margin-bottom:4px}
+.seg-btn{flex:1;padding:8px;border:none;background:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;color:var(--text-sub);transition:all 0.2s}
+.seg-btn.active{background:white;color:var(--blue);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,0.1)}
+
+/* Section title */
+.sec-title{font-size:16px;font-weight:700;color:var(--text);margin-bottom:12px;display:flex;justify-content:space-between;align-items:center}
+.sec-title .add-btn{width:32px;height:32px;background:var(--blue);color:white;border:none;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+
+/* Back btn */
+.back-btn{background:none;border:none;font-size:14px;color:var(--blue);cursor:pointer;font-family:'Noto Sans KR',sans-serif;margin-bottom:16px;display:flex;align-items:center;gap:5px;padding:0;font-weight:500}
+
+/* Profile card */
+.profile-card{background:white;border-radius:18px;padding:16px;box-shadow:var(--shadow);margin-bottom:16px;display:flex;align-items:center;gap:14px}
+.profile-info{flex:1}
+.profile-name{font-size:18px;font-weight:700}
+.profile-sub{font-size:12px;color:var(--text-sub);margin-top:2px}
+
+/* Empty */
+.empty{text-align:center;padding:40px 20px;color:var(--text-sub);font-size:14px}
+.empty .ei{font-size:40px;margin-bottom:10px}
+
+/* Notice */
+.notice-card{background:white;border-radius:16px;padding:16px;box-shadow:var(--shadow);margin-bottom:10px}
+.notice-title{font-size:15px;font-weight:700;margin-bottom:6px}
+.notice-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:10px}
+.notice-meta{font-size:11px;color:var(--text-sub);display:flex;justify-content:space-between;margin-bottom:8px}
+.notice-actions{display:flex;gap:8px;padding-top:8px;border-top:1px solid #F3F4F6;flex-wrap:wrap}
+.like-btn{background:#FEF3C7;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--gold);font-weight:700}
+.like-btn.liked{background:var(--gold);color:white}
+.comment-btn{background:#F0F4FF;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;color:var(--blue);font-weight:700}
+.notice-edit-btn,.notice-del-btn{background:none;border:none;font-size:12px;cursor:pointer;color:var(--text-sub);padding:6px 8px}
+.comments-wrap{margin-top:10px;display:flex;flex-direction:column;gap:6px}
+.comment-item{background:#F8FAFF;border-radius:10px;padding:10px 12px}
+.comment-author{font-size:11px;font-weight:700;color:var(--blue);margin-bottom:2px}
+.comment-text{font-size:13px;color:var(--text)}
+.comment-row{display:flex;gap:8px;margin-top:8px}
+.comment-row input{flex:1;border:2px solid #E5E7EB;border-radius:10px;padding:8px 12px;font-size:13px;font-family:'Noto Sans KR',sans-serif;outline:none}
+.comment-row input:focus{border-color:var(--blue)}
+.comment-send{background:var(--blue);color:white;border:none;border-radius:10px;padding:8px 14px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:700;white-space:nowrap}
+
+/* Link cards */
+.link-card{background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.link-icon{font-size:22px;flex-shrink:0}
+.link-info{flex:1;min-width:0}
+.link-title-text{font-size:14px;font-weight:700}
+.link-url-text{font-size:11px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px}
+.link-actions{display:flex;gap:6px;flex-shrink:0}
+.link-go{background:var(--blue);color:white;border:none;border-radius:8px;padding:6px 12px;font-size:12px;cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:700}
+.link-edt,.link-del{background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35}
+.link-edt:active,.link-del:active{opacity:1}
+
+/* Star */
+.star-type-card{background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;margin-bottom:8px}
+.star-count{font-size:24px;font-weight:900;color:var(--gold)}
+.star-history-item{background:white;border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center}
+
+/* Account card */
+.account-card{background:white;border-radius:18px;padding:18px;box-shadow:var(--shadow);cursor:pointer;margin-bottom:10px;transition:transform 0.15s;border-left:4px solid var(--blue)}
+.account-card:active{transform:scale(0.98)}
+.account-card.goal{border-left-color:var(--green)}
+.account-card.star{border-left-color:var(--gold)}
+.acc-name{font-size:15px;font-weight:700;margin-bottom:4px}
+.acc-balance{font-size:24px;font-weight:900;color:var(--blue)}
+.acc-meta{font-size:11px;color:var(--text-sub);margin-top:4px}
+.goal-bar-wrap{margin-top:10px}
+.goal-bar{height:6px;background:#E5E7EB;border-radius:3px;overflow:hidden;margin-top:4px}
+.goal-bar-fill{height:100%;background:var(--green);border-radius:3px;transition:width 0.5s}
+.goal-pct{font-size:11px;color:var(--green);font-weight:700}
+
+/* Info box */
+.info-box{background:#EFF6FF;border-radius:12px;padding:12px 14px;margin-top:10px;font-size:12px;color:#1E40AF;line-height:1.8}
+.info-box b{color:#1D4ED8}
+
+/* Auto transfer card */
+.auto-card{background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:8px}
+.auto-card .auto-head{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.auto-card .auto-amount{font-size:18px;font-weight:700;color:var(--blue)}
+.auto-card .auto-meta{font-size:12px;color:var(--text-sub)}
+.auto-badge{font-size:11px;background:#DCFCE7;color:var(--green);padding:2px 8px;border-radius:10px;font-weight:700}
+.auto-badge.off{background:#FEE2E2;color:var(--red)}
+
+/*계모임 납입표 */
+.payment-table{width:100%;border-collapse:collapse;font-size:12px;background:white;border-radius:12px;overflow:hidden;box-shadow:var(--shadow)}
+.payment-table th{background:var(--blue);color:white;padding:10px 8px;text-align:center;font-weight:700}
+.payment-table td{padding:10px 8px;text-align:center;border-bottom:1px solid #F3F4F6}
+.payment-table tr:last-child td{border-bottom:none}
+.paid{color:var(--green);font-weight:700}
+.unpaid{color:var(--red)}
+
+/* Pull to refresh */
+.ptr-indicator{text-align:center;padding:10px;font-size:13px;color:var(--text-sub);display:none}
+.ptr-indicator.show{display:block}
+
+/* Delete btn */
+.del-btn-full{width:100%;padding:13px;background:#FEE2E2;color:var(--red);border:none;border-radius:12px;font-size:14px;font-family:'Noto Sans KR',sans-serif;cursor:pointer;font-weight:700;margin-top:16px}
+
+/* Setup */
+.setup-wrap{min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;padding:20px;background:linear-gradient(135deg,#1A73E8 0%,#0D47A1 100%)}
+.setup-card{background:white;border-radius:24px;padding:32px 24px;width:100%;max-width:400px;box-shadow:0 20px 60px rgba(0,0,0,0.15)}
+.setup-card h2{font-size:20px;font-weight:900;margin-bottom:6px}
+.setup-card p{font-size:13px;color:var(--text-sub);margin-bottom:24px}
+
+/* Read all btn */
+.read-all-btn{background:#F0F4FF;border:none;border-radius:10px;padding:7px 14px;font-size:12px;color:var(--blue);cursor:pointer;font-family:'Noto Sans KR',sans-serif;font-weight:700}
+
+/* Toast */
+.toast{position:fixed;bottom:90px;left:50%;transform:translateX(-50%);background:#1A1A2E;color:white;padding:10px 20px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:opacity 0.3s;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,0.2)}
+.toast.show{opacity:1}
+
+/* Invite code */
+.invite-code-box{background:var(--blue-light);border-radius:12px;padding:14px;text-align:center;margin:10px 0}
+.invite-code{font-size:24px;font-weight:900;color:var(--blue);letter-spacing:4px}
+.invite-sub{font-size:12px;color:var(--text-sub);margin-top:4px}
+
+/* Group header */
+.group-header{background:white;border-radius:16px;padding:14px 16px;box-shadow:var(--shadow);margin-bottom:16px;display:flex;align-items:center;justify-content:space-between}
+.group-header-name{font-size:16px;font-weight:700}
+.group-header-type{font-size:11px;background:var(--blue-light);color:var(--blue);padding:3px 10px;border-radius:10px;font-weight:700}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+<input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
+
+<!-- LOGIN -->
+<div class="login-wrap" id="loginWrap">
+  <div class="login-logo">POCKET BANK</div>
+  <div class="login-sub">우리 가족만의 스마트 저축</div>
+  <div class="login-progress" id="loginProgress">
+    <div class="login-progress-fill" id="loginProgressFill"></div>
+  </div>
+  <div class="login-card" id="loginCard">
+    <h3>로그인</h3>
+    <div class="input-group">
+      <label>별칭</label>
+      <input type="text" id="loginNickname" placeholder="별칭 입력" autocomplete="off">
+    </div>
+    <div class="input-group">
+      <label>PIN 번호</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="4자리">
+    </div>
+    <div class="save-id-row">
+      <input type="checkbox" id="saveNickname">
+      <label for="saveNickname">별칭 저장</label>
+    </div>
+    <button class="btn-login" onclick="doLogin()" id="loginBtn">
+      로그인
+      <div class="progress-bar" id="progressBar"></div>
+    </button>
+    <div class="login-divider">처음이신가요?</div>
+    <button class="btn-register" onclick="showRegister()">회원가입</button>
+  </div>
+
+  <!-- REGISTER -->
+  <div class="login-card" id="registerCard" style="display:none">
+    <h3>회원가입</h3>
+    <div class="input-group">
+      <label>별칭 (이름)</label>
+      <input type="text" id="regNickname" placeholder="예: 아빠, 민재">
+    </div>
+    <div class="input-group">
+      <label>PIN 번호 (4자리)</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="regPin" placeholder="4자리 숫자">
+    </div>
+    <div class="input-group">
+      <label>PIN 확인</label>
+      <input type="password" inputmode="numeric" maxlength="4" id="regPinConfirm" placeholder="4자리 숫자">
+    </div>
+    <button class="btn-login" onclick="doRegister()">가입하기</button>
+    <div class="login-divider">이미 계정이 있나요?</div>
+    <button class="btn-register" onclick="showLogin()">로그인</button>
+  </div>
+</div>
+
+<!-- GROUP SELECT -->
+<div class="login-wrap" id="groupSelectWrap" style="display:none">
+  <div class="login-logo">POCKET BANK</div>
+  <div class="login-sub" id="groupSelectSub"></div>
+  <div class="login-card" style="width:100%;max-width:400px">
+    <h3>그룹 선택</h3>
+    <div id="groupList" class="group-list"></div>
+    <button class="btn-register" onclick="showCreateGroup()" style="margin-bottom:10px">+ 그룹 만들기</button>
+    <button class="btn-register" onclick="showJoinGroup()">초대코드로 참여</button>
+  </div>
+</div>
+
+<!-- MAIN APP -->
+<div id="mainApp" style="display:none">
+  <div class="header">
+    <div class="header-title">POCKET BANK</div>
+    <div class="header-right">
+      <span id="headerGroupName" style="font-size:12px;opacity:0.8"></span>
+      <button class="logout-btn" onclick="changeGroup()">그룹변경</button>
+      <button class="logout-btn" onclick="logout()">로그아웃</button>
+    </div>
+  </div>
+
+  <!-- HOME - 관리자 -->
+  <div class="screen" id="adminHomeScreen">
+    <div class="ptr-indicator" id="ptrIndicator">⟳ 새로고침 중...</div>
+    <div class="profile-card">
+      <div class="avatar avatar-edit" style="width:52px;height:52px;font-size:22px" id="adminAvatar" onclick="changeMyPhoto()">
+        <span id="adminAvatarEmoji">👑</span>
+        <div class="edit-overlay">📷</div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="adminName"></div>
+        <div class="profile-sub">은행장</div>
+      </div>
+    </div>
+    <div class="balance-card">
+      <div class="label">전체 예금 총액</div>
+      <div class="amount" id="adminTotal">₩0</div>
+      <div id="adminMemberSummary" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.8;line-height:1.8"></div>
+    </div>
+    <div class="sec-title">
+      최근 거래내역
+      <button class="add-btn" style="background:var(--blue-light);color:var(--blue);font-size:13px;width:auto;padding:4px 10px;border-radius:10px;font-weight:700" onclick="switchTab('history')">전체보기</button>
+    </div>
+    <div id="adminRecentTx" class="tx-list"></div>
+    <button class="load-more" id="loadMoreBtn" onclick="loadMoreTx()" style="display:none;width:100%;padding:11px;background:#F0F4FF;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;margin-top:8px;font-weight:700">더보기 ▼</button>
+  </div>
+
+  <!-- HOME - 구성원 -->
+  <div class="screen" id="memberHomeScreen">
+    <div class="profile-card">
+      <div class="avatar avatar-edit" style="width:52px;height:52px;font-size:22px" id="memberAvatar" onclick="changeMyPhoto()">
+        <span id="memberAvatarEmoji">😊</span>
+        <div class="edit-overlay">📷</div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="memberName"></div>
+        <div class="profile-sub" id="memberSub"></div>
+      </div>
+    </div>
+    <div class="balance-card">
+      <div class="label">내 총 잔액</div>
+      <div class="amount" id="memberTotal">₩0</div>
+    </div>
+    <div class="sec-title">내 통장</div>
+    <div id="memberAccountList" class="tx-list"></div>
+  </div>
+
+  <!-- 관리 탭 -->
+  <div class="screen" id="adminScreen">
+    <div class="sec-title">
+      구성원 관리
+      <button class="add-btn" onclick="showAddMember()">+</button>
+    </div>
+    <div id="memberCards"></div>
+    <div class="sec-title" style="margin-top:16px">
+      그룹 설정
+    </div>
+    <div class="card">
+      <div style="margin-bottom:12px">
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:6px">초대코드</div>
+        <div class="invite-code-box">
+          <div class="invite-code" id="groupInviteCode">-</div>
+          <div class="invite-sub">이 코드를 공유해서 구성원을 초대하세요</div>
+        </div>
+        <button onclick="regenerateInviteCode()" style="width:100%;padding:10px;background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-top:8px">코드 재생성</button>
+      </div>
+    </div>
+    <!-- 계모임 납입현황 -->
+    <div id="paymentTableWrap" style="display:none">
+      <div class="sec-title" style="margin-top:16px">납입 현황</div>
+      <div style="overflow-x:auto">
+        <table class="payment-table" id="paymentTable"></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- 구성원 상세 -->
+  <div class="screen" id="memberDetailScreen">
+    <button class="back-btn" onclick="switchTab('admin')">← 뒤로</button>
+    <div class="profile-card">
+      <div class="avatar avatar-edit" style="width:56px;height:56px;font-size:24px" id="detailAvatar" onclick="changeDetailPhoto()">
+        <span id="detailAvatarEmoji">👦</span>
+        <div class="edit-overlay">📷</div>
+      </div>
+      <div class="profile-info">
+        <div class="profile-name" id="detailName"></div>
+        <div class="profile-sub" id="detailMeta"></div>
+      </div>
+    </div>
+    <div style="display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap">
+      <button class="action-btn edt" style="flex:none;padding:7px 12px" onclick="openEditName()">✏️ 이름</button>
+      <button class="action-btn adj" style="flex:none;padding:7px 12px" onclick="openEditJoinDate()">📅 개설일</button>
+      <button class="action-btn rat" style="flex:none;padding:7px 12px" onclick="showAddAccount()">+ 통장추가</button>
+    </div>
+    <div id="detailAccountList"></div>
+    <button class="del-btn-full" onclick="confirmDeleteMember()">🗑️ 구성원 삭제</button>
+  </div>
+
+  <!-- 통장 상세 (관리자) -->
+  <div class="screen" id="accountDetailScreen">
+    <button class="back-btn" id="accountDetailBack" onclick="goBackFromAccount()">← 뒤로</button>
+    <div class="balance-card">
+      <div class="label" id="accDetailName">통장명</div>
+      <div class="amount" id="accDetailBalance">₩0</div>
+      <div class="interest-row" id="accDetailInterest"></div>
+    </div>
+    <div id="goalProgressWrap" style="display:none">
+      <div class="card">
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px">목표</div>
+        <div style="font-size:15px;font-weight:700" id="goalTitle"></div>
+        <div class="goal-bar-wrap">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="goal-pct" id="goalPct">0%</div>
+            <div style="font-size:12px;color:var(--text-sub)" id="goalAmounts"></div>
+          </div>
+          <div class="goal-bar"><div class="goal-bar-fill" id="goalBarFill"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="starWrap" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
+          <div style="font-size:15px;font-weight:700">⭐ 별 현황</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)" id="totalStars">0개</div>
+        </div>
+        <div id="starTypeList"></div>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button class="action-btn str" onclick="openGiveStars()">⭐ 별 지급</button>
+          <button class="action-btn wit" onclick="openTakeStars()">❌ 별 차감</button>
+          <button class="action-btn dep" onclick="openConvertStars()">💰 별→돈</button>
+        </div>
+      </div>
+    </div>
+    <div id="autoTransferWrap" style="display:none">
+      <div class="sec-title" style="margin-top:4px">
+        자동이체
+        <button class="add-btn" onclick="openAddAutoTransfer()">+</button>
+      </div>
+      <div id="autoTransferList"></div>
+    </div>
+    <div class="action-row" id="accountActions">
+      <button class="action-btn dep" onclick="openTxFromDetail('deposit')">💰 입금</button>
+      <button class="action-btn wit" onclick="openTxFromDetail('withdraw')">💸 출금</button>
+      <button class="action-btn int" onclick="openInterestModal()">📈 이자</button>
+    </div>
+    <div class="action-row">
+      <button class="action-btn adj" onclick="openAdjust()">✏️ 잔액수정</button>
+      <button class="action-btn rat" onclick="openRateModal()">⚙️ 이자율</button>
+      <button class="action-btn edt" onclick="openEditAccName()">📝 통장명</button>
+    </div>
+    <div class="sec-title" style="margin-top:12px">거래내역</div>
+    <div class="tx-list" id="accDetailTxList"></div>
+    <button class="del-btn-full" onclick="confirmDeleteAccount()">🗑️ 통장 삭제</button>
+  </div>
+
+  <!-- 통장 탭 (구성원) -->
+  <div class="screen" id="myAccountScreen">
+    <div class="sec-title">내 통장</div>
+    <div id="myAccountList"></div>
+  </div>
+
+  <!-- 내 통장 상세 (구성원) -->
+  <div class="screen" id="myAccountDetailScreen">
+    <button class="back-btn" onclick="showScreen('myAccountScreen');switchTab('account')">← 뒤로</button>
+    <div class="balance-card">
+      <div class="label" id="myAccDetailName">통장명</div>
+      <div class="amount" id="myAccDetailBalance">₩0</div>
+      <div class="interest-row" id="myAccDetailInterest"></div>
+    </div>
+    <div id="myGoalWrap" style="display:none">
+      <div class="card">
+        <div style="font-size:13px;color:var(--text-sub);margin-bottom:4px">목표</div>
+        <div style="font-size:15px;font-weight:700" id="myGoalTitle"></div>
+        <div class="goal-bar-wrap">
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div class="goal-pct" id="myGoalPct">0%</div>
+            <div style="font-size:12px;color:var(--text-sub)" id="myGoalAmounts"></div>
+          </div>
+          <div class="goal-bar"><div class="goal-bar-fill" id="myGoalBarFill"></div></div>
+        </div>
+      </div>
+    </div>
+    <div id="myStarWrap" style="display:none">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div style="font-size:15px;font-weight:700">⭐ 내 별</div>
+          <div style="font-size:22px;font-weight:900;color:var(--gold)" id="myTotalStars">0개</div>
+        </div>
+        <div id="myStarTypeList" style="margin-top:8px"></div>
+      </div>
+    </div>
+    <div class="sec-title" style="margin-top:12px">거래내역</div>
+    <div class="tx-list" id="myAccDetailTxList"></div>
+  </div>
+
+  <!-- 전체 내역 탭 -->
+  <div class="screen" id="historyScreen">
+    <div class="sec-title">전체 거래내역</div>
+    <div class="tx-list" id="allTxList"></div>
+  </div>
+
+  <!-- 알림 탭 -->
+  <div class="screen" id="noticeScreen">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="sec-title" style="margin-bottom:0">알림</div>
+      <div style="display:flex;gap:8px;align-items:center">
+        <button class="read-all-btn" onclick="markAllRead()">✅ 다읽음</button>
+        <button class="add-btn" id="noticeAddBtn" onclick="openWriteNotice()" style="display:none">+</button>
+      </div>
+    </div>
+    <div id="noticeList"></div>
+  </div>
+
+  <!-- 기타 탭 -->
+  <div class="screen" id="etcScreen">
+    <div class="sec-title">
+      기타
+      <button class="add-btn" id="etcAddBtn" onclick="openAddLink()" style="display:none">+</button>
+    </div>
+    <div id="linkList"></div>
+  </div>
+
+  <!-- TAB BAR -->
+  <div class="tab-bar" id="tabBar">
+    <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
+      <span class="ti">🏠</span>홈
+    </button>
+    <button class="tab-btn" id="tab-account" onclick="switchTab('account')">
+      <span class="ti">📒</span>통장
+    </button>
+    <button class="tab-btn" id="tab-admin" onclick="switchTab('admin')" style="display:none">
+      <span class="ti">⚙️</span>관리
+    </button>
+    <button class="tab-btn" id="tab-notice" onclick="switchTab('notice')">
+      <span class="ti">🔔</span>알림
+      <div class="tab-badge" id="noticeBadge"></div>
+    </button>
+    <button class="tab-btn" id="tab-etc" onclick="switchTab('etc')">
+      <span class="ti">🔗</span>기타
+    </button>
+  </div>
+</div>
+
+<!-- MODALS -->
+<!-- Create Group -->
+<div class="modal-overlay" id="createGroupModal">
+  <div class="modal">
+    <h3>그룹 만들기</h3>
+    <div class="input-group"><label>그룹 이름</label><input type="text" id="groupName" placeholder="예: 우리 가족"></div>
+    <div class="input-group">
+      <label>그룹 유형</label>
+      <div class="segment">
+        <button class="seg-btn active" onclick="selectSeg('groupTypeSeg','groupType','family',this)">👨‍👩‍👧 가족</button>
+        <button class="seg-btn" onclick="selectSeg('groupTypeSeg','groupType','gye',this)">🤝 계모임</button>
+        <button class="seg-btn" onclick="selectSeg('groupTypeSeg','groupType','friend',this)">👥 친목</button>
+      </div>
+      <input type="hidden" id="groupType" value="family">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('createGroupModal')">취소</button>
+      <button class="btn btn-primary" onclick="createGroup()">만들기</button>
+    </div>
+  </div>
+</div>
+
+<!-- Join Group -->
+<div class="modal-overlay" id="joinGroupModal">
+  <div class="modal">
+    <h3>초대코드로 참여</h3>
+    <div class="input-group"><label>초대코드</label><input type="text" id="joinCode" placeholder="예: POCKET-1234" style="text-transform:uppercase"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('joinGroupModal')">취소</button>
+      <button class="btn btn-primary" onclick="joinGroup()">참여</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Member -->
+<div class="modal-overlay" id="addMemberModal">
+  <div class="modal">
+    <h3>구성원 추가</h3>
+    <div class="input-group"><label>별칭</label><input type="text" id="newMemberNickname" placeholder="예: 첫째"></div>
+    <div class="input-group"><label>PIN (4자리)</label><input type="password" inputmode="numeric" maxlength="4" id="newMemberPin"></div>
+    <div class="input-group"><label>개설일</label><input type="date" id="newMemberJoinDate"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('addMemberModal')">취소</button>
+      <button class="btn btn-primary" onclick="addMember()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- Add Account -->
+<div class="modal-overlay" id="addAccountModal">
+  <div class="modal">
+    <h3>통장 추가</h3>
+    <div class="input-group"><label>통장명</label><input type="text" id="newAccName" placeholder="예: 기본통장"></div>
+    <div class="input-group">
+      <label>통장 유형</label>
+      <div class="segment">
+        <button class="seg-btn active" onclick="selectSeg('accTypeSeg','newAccType','basic',this);toggleAccTypeFields()">기본</button>
+        <button class="seg-btn" onclick="selectSeg('accTypeSeg','newAccType','goal',this);toggleAccTypeFields()">목표</button>
+        <button class="seg-btn" onclick="selectSeg('accTypeSeg','newAccType','star',this);toggleAccTypeFields()">별별</button>
+      </div>
+      <input type="hidden" id="newAccType" value="basic">
+    </div>
+    <div id="goalFields" style="display:none">
+      <div class="input-group"><label>목표 이름</label><input type="text" id="newGoalTitle" placeholder="예: 닌텐도"></div>
+      <div class="input-group"><label>목표 금액</label><input type="number" id="newGoalAmount" placeholder="500000" inputmode="numeric"></div>
+    </div>
+    <div class="input-group"><label>연 이자율 (%)</label><input type="number" id="newAccRate" value="0" placeholder="0"></div>
+    <div class="input-group">
+      <label>이자 방식</label>
+      <div class="segment">
+        <button class="seg-btn active" onclick="selectSeg('newAccMethodSeg','newAccMethod','simple',this)">단리</button>
+        <button class="seg-btn" onclick="selectSeg('newAccMethodSeg','newAccMethod','compound',this)">복리</button>
+      </div>
+      <input type="hidden" id="newAccMethod" value="simple">
+    </div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('addAccountModal')">취소</button>
+      <button class="btn btn-primary" onclick="addAccount()">추가</button>
+    </div>
+  </div>
+</div>
+
+<!-- Transaction -->
+<div class="modal-overlay" id="txModal">
+  <div class="modal">
+    <h3 id="txModalTitle">입금</h3>
+    <div class="input-group"><label>금액 (원)</label><input type="text" id="txAmount" placeholder="0" inputmode="numeric" oninput="formatComma(this)"></div>
+    <div class="input-group"><label>메모</label><input type="text" id="txNote" placeholder="선택사항"></div>
+    <div class="input-group"><label>날짜</label><input type="datetime-local" id="txDate"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('txModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitTx()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Transaction -->
+<div class="modal-overlay" id="editTxModal">
+  <div class="modal">
+    <h3>거래내역 수정</h3>
+    <div class="input-group"><label>유형</label>
+      <select id="editTxType">
+        <option value="deposit">💰 입금</option>
+        <option value="withdraw">💸 출금</option>
+        <option value="interest">📈 이자</option>
+        <option value="adjust">✏️ 잔액수정</option>
+      </select>
+    </div>
+    <div class="input-group"><label>금액</label><input type="text" id="editTxAmount" inputmode="numeric" oninput="formatComma(this)"></div>
+    <div class="input-group"><label>잔액 (수정 후)</label><input type="text" id="editTxBalance" inputmode="numeric" oninput="formatComma(this)"></div>
+    <div class="input-group"><label>메모</label><input type="text" id="editTxNote"></div>
+    <div class="input-group"><label>날짜</label><input type="datetime-local" id="editTxDate"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('editTxModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitEditTx()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Adjust -->
+<div class="modal-overlay" id="adjustModal">
+  <div class="modal">
+    <h3>잔액 직접 수정</h3>
+    <div class="input-group"><label>새 잔액</label><input type="text" id="adjustAmount" inputmode="numeric" oninput="formatComma(this)"></div>
+    <div class="input-group"><label>사유</label><input type="text" id="adjustNote" placeholder="예: 오입력 수정"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('adjustModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitAdjust()">수정</button>
+    </div>
+  </div>
+</div>
+
+<!-- Rate -->
+<div class="modal-overlay" id="rateModal">
+  <div class="modal">
+    <h3>이자율 설정</h3>
+    <div class="input-group"><label>연 이자율 (%)</label><input type="number" id="rateInput" oninput="updateRatePreview()"></div>
+    <div class="input-group">
+      <label>이자 방식</label>
+      <div class="segment">
+        <button class="seg-btn active" onclick="selectSeg('rateMethodSeg','rateMethod','simple',this);updateRatePreview()">단리</button>
+        <button class="seg-btn" onclick="selectSeg('rateMethodSeg','rateMethod','compound',this);updateRatePreview()">복리</button>
+      </div>
+      <input type="hidden" id="rateMethod" value="simple">
+    </div>
+    <div class="info-box" id="ratePreview"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('rateModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitRate()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Interest -->
+<div class="modal-overlay" id="interestModal">
+  <div class="modal">
+    <h3 id="interestTitle">이자 지급</h3>
+    <div class="input-group"><label>지급 기준일</label><input type="date" id="interestDate" oninput="calcInterestBreakdown()"></div>
+    <div class="info-box" id="interestBreakdown" style="display:none"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('interestModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitInterest()">지급</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Name -->
+<div class="modal-overlay" id="editNameModal">
+  <div class="modal">
+    <h3>이름 수정</h3>
+    <div class="input-group"><label>새 이름</label><input type="text" id="editNameInput"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('editNameModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitEditName()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Join Date -->
+<div class="modal-overlay" id="editJoinDateModal">
+  <div class="modal">
+    <h3>개설일 설정</h3>
+    <div class="input-group"><label>개설일</label><input type="date" id="editJoinDateInput"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('editJoinDateModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitEditJoinDate()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Edit Acc Name -->
+<div class="modal-overlay" id="editAccNameModal">
+  <div class="modal">
+    <h3>통장명 수정</h3>
+    <div class="input-group"><label>통장명</label><input type="text" id="editAccNameInput"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('editAccNameModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitEditAccName()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Auto Transfer -->
+<div class="modal-overlay" id="autoTransferModal">
+  <div class="modal">
+    <h3>자동이체 설정</h3>
+    <div class="input-group"><label>이체 금액</label><input type="text" id="atAmount" inputmode="numeric" oninput="formatComma(this)"></div>
+    <div class="input-group"><label>매월 몇 일</label><input type="number" id="atDay" min="1" max="31" placeholder="1~31"></div>
+    <div class="input-group">
+      <label>종료 조건</label>
+      <div class="segment">
+        <button class="seg-btn active" onclick="selectSeg('atModeSeg','atMode','count',this);toggleAtMode()">횟수</button>
+        <button class="seg-btn" onclick="selectSeg('atModeSeg','atMode','amount',this);toggleAtMode()">목표금액</button>
+        <button class="seg-btn" onclick="selectSeg('atModeSeg','atMode','infinite',this);toggleAtMode()">무기한</button>
+      </div>
+      <input type="hidden" id="atMode" value="count">
+    </div>
+    <div id="atCountField"><div class="input-group"><label>총 횟수</label><input type="number" id="atCount" placeholder="예: 12"></div></div>
+    <div id="atAmountField" style="display:none"><div class="input-group"><label>목표 금액</label><input type="text" id="atTargetAmount" inputmode="numeric" oninput="formatComma(this)"></div></div>
+    <div class="input-group"><label>메모</label><input type="text" id="atNote" placeholder="예: 월 용돈"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('autoTransferModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitAutoTransfer()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Stars -->
+<div class="modal-overlay" id="starsModal">
+  <div class="modal">
+    <h3 id="starsModalTitle">별 지급</h3>
+    <div class="input-group"><label>별 종류</label>
+      <select id="starTypeSelect"></select>
+    </div>
+    <div class="input-group"><label>개수</label><input type="number" id="starCount" min="1" placeholder="1"></div>
+    <div class="input-group"><label>메모</label><input type="text" id="starNote"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('starsModal')">취소</button>
+      <button class="btn btn-gold" onclick="submitStars()">확인</button>
+    </div>
+  </div>
+</div>
+
+<!-- Convert Stars -->
+<div class="modal-overlay" id="convertStarsModal">
+  <div class="modal">
+    <h3>별 → 돈 전환</h3>
+    <div class="input-group"><label>전환할 별 개수</label><input type="number" id="convertStarCount" min="1"></div>
+    <div class="input-group"><label>별 1개당 금액 (원)</label><input type="text" id="convertRate" inputmode="numeric" oninput="formatComma(this);calcConvert()"></div>
+    <div class="info-box" id="convertPreview"></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('convertStarsModal')">취소</button>
+      <button class="btn btn-green" onclick="submitConvertStars()">전환</button>
+    </div>
+  </div>
+</div>
+
+<!-- Notice -->
+<div class="modal-overlay" id="noticeModal">
+  <div class="modal">
+    <h3 id="noticeModalTitle">공지 작성</h3>
+    <div class="input-group"><label>제목</label><input type="text" id="noticeTitle"></div>
+    <div class="input-group"><label>내용</label><textarea id="noticeContent"></textarea></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('noticeModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitNotice()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- Link -->
+<div class="modal-overlay" id="linkModal">
+  <div class="modal">
+    <h3 id="linkModalTitle">링크 추가</h3>
+    <div class="input-group"><label>아이콘</label><input type="text" id="linkIcon" maxlength="2" placeholder="🔗"></div>
+    <div class="input-group"><label>제목</label><input type="text" id="linkTitle"></div>
+    <div class="input-group"><label>URL</label><input type="url" id="linkUrl" placeholder="https://..."></div>
+    <div class="modal-btns">
+      <button class="btn btn-cancel" onclick="closeModal('linkModal')">취소</button>
+      <button class="btn btn-primary" onclick="submitLink()">저장</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const SB_URL='https://ntaaxhayfraqcpnbreme.supabase.co';
+const SB_KEY='sb_publishable_3B1-IKzYNazYswN91dtHsg_16Mb6lKY';
+const{createClient}=supabase;
+const db=createClient(SB_URL,SB_KEY);
+
+// State
+let currentUser=null,currentGroup=null,currentGroupMember=null;
+let detailMember=null,detailAccount=null;
+let txAction=null,txAccountId=null;
+let editTxId=null,editNameTargetId=null,editAccId=null;
+let starsAction=null,starsAccountId=null;
+let rateAccountId=null,interestAccountId=null,adjustAccountId=null;
+let editLinkId=null,editNoticeId=null;
+let recentTxAll=[],recentTxShown=10;
+let photoTarget=null;
+let interestTotal=0;
+
+// ── Utils ──
+function fmt(n){return'₩'+Number(Math.round(n)).toLocaleString('ko-KR')}
+function fmtDate(d){const dt=new Date(d);return`${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`}
+function localDT(d){const dt=new Date(d);const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`}
+function todayStr(){const dt=new Date();const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`}
+function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+function showModal(id){document.getElementById(id).classList.add('active')}
+function closeModal(id){document.getElementById(id).classList.remove('active')}
+function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
+function calcInt(bal,rate,method){const r=rate/100;return{monthly:method==='compound'?bal*(Math.pow(1+r,1/12)-1):bal*r/12,yearly:method==='compound'?bal*(Math.pow(1+r,1)-1):bal*r}}
+function methodLabel(m){return m==='compound'?'복리':'단리'}
+function formatComma(el){const raw=el.value.replace(/[^0-9]/g,'');el.value=raw?Number(raw).toLocaleString('ko-KR'):''}
+function parseComma(v){return parseFloat((v||'0').replace(/,/g,''))||0}
+function selectSeg(segId,hiddenId,value,btn){document.querySelectorAll(`#${segId} .seg-btn`).forEach(b=>b.classList.remove('active'));btn.classList.add('active');document.getElementById(hiddenId).value=value}
+function generateCode(){return'PB-'+Math.random().toString(36).substring(2,6).toUpperCase()}
+
+// ── Login/Register ──
+window.onload=()=>{
+  const saved=localStorage.getItem('pb_nickname');
+  if(saved){document.getElementById('loginNickname').value=saved;document.getElementById('saveNickname').checked=true}
+}
+
+function showRegister(){document.getElementById('loginCard').style.display='none';document.getElementById('registerCard').style.display='block'}
+function showLogin(){document.getElementById('loginCard').style.display='block';document.getElementById('registerCard').style.display='none'}
+
+async function doLogin(){
+  const nickname=document.getElementById('loginNickname').value.trim();
+  const pin=document.getElementById('loginPin').value;
+  if(!nickname||pin.length!==4){showToast('별칭과 PIN을 입력해주세요');return}
+
+  // Progress bar
+  const prog=document.getElementById('loginProgress');
+  const fill=document.getElementById('loginProgressFill');
+  prog.style.display='block';fill.style.width='0%';
+  let pct=0;
+  const interval=setInterval(()=>{pct=Math.min(pct+8,85);fill.style.width=pct+'%'},100);
+
+  const{data:user}=await db.from('users').select('*').eq('nickname',nickname).eq('pin',pin).single();
+  clearInterval(interval);
+  if(!user){fill.style.width='0%';setTimeout(()=>{prog.style.display='none'},300);showToast('별칭 또는 PIN이 틀렸어요');return}
+
+  fill.style.width='100%';
+  setTimeout(()=>{prog.style.display='none';fill.style.width='0%'},500);
+
+  if(document.getElementById('saveNickname').checked){localStorage.setItem('pb_nickname',nickname)}
+  else{localStorage.removeItem('pb_nickname')}
+
+  currentUser=user;
+  await loadGroupSelect();
+}
+
+async function doRegister(){
+  const nickname=document.getElementById('regNickname').value.trim();
+  const pin=document.getElementById('regPin').value;
+  const pinConfirm=document.getElementById('regPinConfirm').value;
+  if(!nickname){showToast('별칭을 입력해주세요');return}
+  if(pin.length!==4){showToast('PIN 4자리를 입력해주세요');return}
+  if(pin!==pinConfirm){showToast('PIN이 일치하지 않아요');return}
+
+  const{data:existing}=await db.from('users').select('id').eq('nickname',nickname).single();
+  if(existing){showToast('이미 사용중인 별칭이에요');return}
+
+  const{data:user,error}=await db.from('users').insert({nickname,pin}).select().single();
+  if(error){showToast('오류가 발생했어요');return}
+  currentUser=user;
+  showToast('가입됐어요!');
+  await loadGroupSelect();
+}
+
+// ── Group Select ──
+async function loadGroupSelect(){
+  document.getElementById('loginWrap').style.display='none';
+  document.getElementById('groupSelectWrap').style.display='flex';
+  document.getElementById('groupSelectSub').textContent=`${currentUser.nickname}님, 반가워요!`;
+
+  const{data:memberships}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
+  const list=document.getElementById('groupList');
+  if(!memberships||memberships.length===0){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
+
+  const typeIcon={family:'👨‍👩‍👧',gye:'🤝',friend:'👥'};
+  const typeLabel={family:'가족',gye:'계모임',friend:'친목'};
+  list.innerHTML=memberships.map(m=>`
+    <div class="group-card" onclick="selectGroup('${m.group_id}','${m.role}')">
+      <div class="group-icon">${typeIcon[m.groups.type]||'👥'}</div>
+      <div class="group-info">
+        <div class="group-name">${m.groups.name}</div>
+        <div class="group-meta">${typeLabel[m.groups.type]||'그룹'} · ${m.role==='admin'?'관리자':'구성원'}</div>
+      </div>
+      ${m.role==='admin'?'<div class="group-role">은행장</div>':''}
+    </div>`).join('');
+}
+
+async function selectGroup(groupId,role){
+  const{data:group}=await db.from('groups').select('*').eq('id',groupId).single();
+  const{data:member}=await db.from('group_members').select('*').eq('group_id',groupId).eq('user_id',currentUser.id).single();
+  currentGroup=group;
+  currentGroupMember=member;
+
+  document.getElementById('groupSelectWrap').style.display='none';
+  document.getElementById('mainApp').style.display='block';
+  document.getElementById('headerGroupName').textContent=group.name;
+
+  if(role==='admin'){
+    document.getElementById('tab-admin').style.display='flex';
+    document.getElementById('noticeAddBtn').style.display='';
+    document.getElementById('etcAddBtn').style.display='';
+  }
+
+  await loadHome();
+  switchTab('home');
+}
+
+function changeGroup(){
+  currentGroup=null;currentGroupMember=null;
+  document.getElementById('mainApp').style.display='none';
+  loadGroupSelect();
+}
+
+function logout(){
+  currentUser=null;currentGroup=null;
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('groupSelectWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('loginPin').value='';
+}
+
+function showCreateGroup(){showModal('createGroupModal')}
+function showJoinGroup(){showModal('joinGroupModal')}
+
+async function createGroup(){
+  const name=document.getElementById('groupName').value.trim();
+  const type=document.getElementById('groupType').value;
+  if(!name){showToast('그룹 이름을 입력해주세요');return}
+  const code=generateCode();
+  const{data:group,error}=await db.from('groups').insert({name,type,invite_code:code,created_by:currentUser.id}).select().single();
+  if(error){showToast('오류가 발생했어요');return}
+  await db.from('group_members').insert({group_id:group.id,user_id:currentUser.id,role:'admin'});
+  closeModal('createGroupModal');
+  showToast('그룹이 만들어졌어요!');
+  await selectGroup(group.id,'admin');
+}
+
+async function joinGroup(){
+  const code=document.getElementById('joinCode').value.trim().toUpperCase();
+  if(!code){showToast('초대코드를 입력해주세요');return}
+  const{data:group}=await db.from('groups').select('*').eq('invite_code',code).single();
+  if(!group){showToast('올바르지 않은 초대코드예요');return}
+  const{data:existing}=await db.from('group_members').select('id').eq('group_id',group.id).eq('user_id',currentUser.id).single();
+  if(existing){showToast('이미 참여 중인 그룹이에요');closeModal('joinGroupModal');return}
+  await db.from('group_members').insert({group_id:group.id,user_id:currentUser.id,role:'member'});
+  closeModal('joinGroupModal');
+  showToast(`${group.name}에 참여했어요!`);
+  await loadGroupSelect();
+}
+
+// ── Home ──
+async function loadHome(){
+  const isAdmin=currentGroupMember.role==='admin';
+  renderMyAvatar();
+  await checkNoticeBadge();
+
+  if(isAdmin){
+    document.getElementById('adminName').textContent=currentUser.nickname;
+    // 전체 구성원 잔액
+    const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    let total=0;const summaries=[];
+    if(members){
+      for(const m of members){
+        const{data:accs}=await db.from('accounts').select('balance').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
+        const bal=(accs||[]).reduce((s,a)=>s+a.balance,0);
+        total+=bal;summaries.push(`${m.users.nickname}: ${fmt(bal)}`);
+      }
+    }
+    document.getElementById('adminTotal').textContent=fmt(total);
+    document.getElementById('adminMemberSummary').innerHTML=summaries.join('<br>');
+    // 최근 거래
+    const{data:txs}=await db.from('transactions').select('*,accounts(name,user_id,group_id,users(nickname))').eq('accounts.group_id',currentGroup.id).order('created_at',{ascending:false}).limit(100);
+    recentTxAll=txs||[];
+    recentTxShown=10;
+    renderRecentTx();
+  } else {
+    document.getElementById('memberName').textContent=currentUser.nickname;
+    const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+    const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
+    document.getElementById('memberTotal').textContent=fmt(total);
+    renderMemberAccountList(accs||[]);
+  }
+}
+
+function renderRecentTx(){
+  const list=document.getElementById('adminRecentTx');
+  const btn=document.getElementById('loadMoreBtn');
+  const shown=recentTxAll.slice(0,recentTxShown);
+  if(!shown.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>';btn.style.display='none';return}
+  list.innerHTML=shown.map(tx=>txItemHtml(tx,false)).join('');
+  btn.style.display=recentTxAll.length>recentTxShown?'block':'none';
+}
+
+function loadMoreTx(){recentTxShown+=10;renderRecentTx()}
+
+function renderMemberAccountList(accs){
+  const list=document.getElementById('memberAccountList');
+  if(!accs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
+  list.innerHTML=accs.map(a=>`
+    <div class="account-card ${a.type}" onclick="openMyAccountDetail('${a.id}')">
+      <div class="acc-name">${a.type==='star'?'⭐':a.type==='goal'?'🎯':'📒'} ${a.name}</div>
+      <div class="acc-balance">${fmt(a.balance)}</div>
+      <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
+      ${a.type==='goal'&&a.goal_amount?`
+        <div class="goal-bar-wrap">
+          <div style="display:flex;justify-content:space-between"><span class="goal-pct">${Math.min(100,Math.round(a.balance/a.goal_amount*100))}%</span><span style="font-size:11px;color:var(--text-sub)">${fmt(a.balance)} / ${fmt(a.goal_amount)}</span></div>
+          <div class="goal-bar"><div class="goal-bar-fill" style="width:${Math.min(100,a.balance/a.goal_amount*100)}%"></div></div>
+        </div>`:''}
+    </div>`).join('');
+}
+
+function txItemHtml(tx,isAdmin){
+  const isPlus=['deposit','interest'].includes(tx.type);
+  const isAdj=tx.type==='adjust';
+  const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
+  const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
+  const cls=isAdj?'adjust':isPlus?'plus':'minus';
+  const amtStr=isAdj?`→ ${fmt(tx.balance_after)}`:`${isPlus?'+':'-'}${fmt(tx.amount)}`;
+  const adminBtns=isAdmin?`<div class="tx-actions"><button class="tx-btn" onclick="openEditTx('${tx.id}','${tx.type}',${tx.amount},${tx.balance_after},'${(tx.note||'').replace(/'/g,"\\'")}','${tx.created_at}',event)">✏️</button><button class="tx-btn" onclick="confirmDeleteTx('${tx.id}',event)">🗑️</button></div>`:'';
+  return`<div class="tx-item"><div class="tx-icon">${icon}</div><div class="tx-info"><div class="tx-note">${tx.note||label}</div><div class="tx-date">${fmtDate(tx.created_at)}</div></div><div class="tx-right"><div class="tx-amt ${cls}">${amtStr}</div><div class="tx-bal">잔액 ${fmt(tx.balance_after)}</div></div>${adminBtns}</div>`;
+}
+
+// ── Photo ──
+function changeMyPhoto(){photoTarget='me';document.getElementById('photoInput').click()}
+function changeDetailPhoto(){photoTarget='detail';document.getElementById('photoInput').click()}
+async function handlePhotoUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async(ev)=>{
+    const b64=ev.target.result;
+    const uid=photoTarget==='me'?currentUser.id:detailMember.id;
+    await db.from('users').update({photo:b64}).eq('id',uid);
+    showToast('사진 변경됐어요!');
+    if(photoTarget==='me'){currentUser.photo=b64;renderMyAvatar()}
+    else{detailMember.photo=b64;renderDetailAvatar()}
+  };
+  reader.readAsDataURL(file);e.target.value='';
+}
+function renderMyAvatar(){
+  const isAdmin=currentGroupMember?.role==='admin';
+  const elId=isAdmin?'adminAvatar':'memberAvatar';
+  const emojiId=isAdmin?'adminAvatarEmoji':'memberAvatarEmoji';
+  setAvatar(elId,emojiId,currentUser.photo,isAdmin?'👑':'😊');
+}
+function renderDetailAvatar(){setAvatar('detailAvatar','detailAvatarEmoji',detailMember?.photo,'👦')}
+function setAvatar(elId,emojiId,photo,defaultEmoji){
+  const el=document.getElementById(elId);const em=document.getElementById(emojiId);
+  if(photo){em.style.display='none';let img=el.querySelector('img');if(!img){img=document.createElement('img');el.insertBefore(img,el.firstChild)}img.src=photo}
+  else{em.style.display='';em.textContent=defaultEmoji;const img=el.querySelector('img');if(img)img.remove()}
+}
+function avatarEl(photo,emoji,size){
+  return photo?`<div class="avatar" style="width:${size}px;height:${size}px"><img src="${photo}"></div>`:`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${size*0.45}px">${emoji}</div>`;
+}
+
+// ── Admin Members ──
+async function loadAdminMembers(){
+  const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+  const container=document.getElementById('memberCards');
+  if(!members||!members.length){container.innerHTML='<div class="empty"><div class="ei">👥</div>구성원을 추가해주세요</div>';return}
+
+  const cards=await Promise.all(members.map(async m=>{
+    const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
+    const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
+    return{...m,total,accs:accs||[]};
+  }));
+
+  container.innerHTML=cards.map(m=>`
+    <div class="member-card" onclick="openMemberDetail('${m.user_id}')">
+      ${avatarEl(m.users.photo,'👦',44)}
+      <div class="member-info">
+        <div class="member-name">${m.users.nickname} <span style="font-size:11px;color:var(--text-sub);font-weight:400">${m.join_date?'개설 '+m.join_date:''}</span></div>
+        <div class="member-balance">${fmt(m.total)}</div>
+        <div class="member-meta">통장 ${m.accs.length}개</div>
+      </div>
+    </div>`).join('');
+
+  // 초대코드
+  document.getElementById('groupInviteCode').textContent=currentGroup.invite_code||'-';
+
+  // 계모임 납입표
+  if(currentGroup.type==='gye'){
+    document.getElementById('paymentTableWrap').style.display='block';
+    renderPaymentTable(cards);
+  }
+}
+
+function renderPaymentTable(members){
+  const months=['1월','2월','3월','4월','5월','6월','7월','8월','9월','10월','11월','12월'];
+  const currentMonth=new Date().getMonth();
+  const showMonths=months.slice(0,currentMonth+1);
+  const table=document.getElementById('paymentTable');
+  table.innerHTML=`<tr><th>이름</th>${showMonths.map(m=>`<th>${m}</th>`).join('')}<th>합계</th></tr>`+
+    members.map(m=>`<tr><td style="font-weight:700">${m.users.nickname}</td>${showMonths.map(()=>`<td class="paid">✅</td>`).join('')}<td class="paid">${fmt(m.total)}</td></tr>`).join('');
+}
+
+async function openMemberDetail(userId){
+  const{data:user}=await db.from('users').select('*').eq('id',userId).single();
+  const{data:gm}=await db.from('group_members').select('*').eq('group_id',currentGroup.id).eq('user_id',userId).single();
+  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',userId);
+  detailMember={...user,...gm,accs:accs||[]};
+  document.getElementById('detailName').textContent=user.nickname;
+  document.getElementById('detailMeta').textContent=gm.join_date?`개설일: ${gm.join_date}`:'개설일 미설정';
+  renderDetailAvatar();
+  renderDetailAccountList(accs||[]);
+  showScreen('memberDetailScreen');
+}
+
+function renderDetailAccountList(accs){
+  const list=document.getElementById('detailAccountList');
+  if(!accs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
+  list.innerHTML=accs.map(a=>`
+    <div class="account-card ${a.type}" onclick="openAccountDetail('${a.id}')">
+      <div class="acc-name">${a.type==='star'?'⭐':a.type==='goal'?'🎯':'📒'} ${a.name}</div>
+      <div class="acc-balance">${fmt(a.balance)}</div>
+      <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
+      ${a.type==='goal'&&a.goal_amount?`<div class="goal-bar"><div class="goal-bar-fill" style="width:${Math.min(100,a.balance/a.goal_amount*100)}%"></div></div>`:''}
+    </div>`).join('');
+}
+
+// ── Account Detail ──
+async function openAccountDetail(accId){
+  const{data:acc}=await db.from('accounts').select('*,users(nickname)').eq('id',accId).single();
+  detailAccount=acc;
+  document.getElementById('accDetailName').textContent=acc.name;
+  document.getElementById('accDetailBalance').textContent=fmt(acc.balance);
+  const{monthly,yearly}=calcInt(acc.balance,acc.interest_rate,acc.interest_method);
+  document.getElementById('accDetailInterest').innerHTML=`<span>연 이자율</span><span class="val">${acc.interest_rate}%</span><span>방식</span><span class="val">${methodLabel(acc.interest_method)}</span><span>월 이자</span><span class="val">${fmt(monthly)}</span><span>연 이자</span><span class="val">${fmt(yearly)}</span>`;
+
+  // Goal
+  const goalWrap=document.getElementById('goalProgressWrap');
+  if(acc.type==='goal'&&acc.goal_amount){
+    goalWrap.style.display='block';
+    document.getElementById('goalTitle').textContent=acc.goal_title||'목표';
+    const pct=Math.min(100,Math.round(acc.balance/acc.goal_amount*100));
+    document.getElementById('goalPct').textContent=pct+'%';
+    document.getElementById('goalAmounts').textContent=`${fmt(acc.balance)} / ${fmt(acc.goal_amount)}`;
+    document.getElementById('goalBarFill').style.width=pct+'%';
+  } else goalWrap.style.display='none';
+
+  // Star
+  const starWrap=document.getElementById('starWrap');
+  if(acc.type==='star'){
+    starWrap.style.display='block';
+    await loadStarInfo(acc.id);
+  } else starWrap.style.display='none';
+
+  // Auto transfers
+  document.getElementById('autoTransferWrap').style.display='block';
+  await loadAutoTransfers(acc.id);
+
+  // Transactions
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',accId).order('created_at',{ascending:false}).limit(100);
+  document.getElementById('accDetailTxList').innerHTML=(!txs||!txs.length)?'<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>':txs.map(tx=>txItemHtml(tx,true)).join('');
+
+  document.getElementById('accountDetailBack').onclick=()=>{showScreen('memberDetailScreen')};
+  showScreen('accountDetailScreen');
+}
+
+async function loadStarInfo(accId){
+  const{data:history}=await db.from('star_history').select('*,star_types(name,icon)').eq('account_id',accId).order('created_at',{ascending:false});
+  const totals={};
+  (history||[]).forEach(h=>{totals[h.star_type_id]=(totals[h.star_type_id]||0)+h.amount});
+  const total=Object.values(totals).reduce((s,v)=>s+v,0);
+  document.getElementById('totalStars').textContent=total+'개';
+  const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
+  document.getElementById('starTypeList').innerHTML=(types||[]).map(t=>`
+    <div style="display:flex;justify-content:space-between;align-items:center;padding:6px 0;border-bottom:1px solid #F3F4F6">
+      <span>${t.icon||'⭐'} ${t.name}</span>
+      <span style="font-weight:700;color:var(--gold)">${totals[t.id]||0}개</span>
+    </div>`).join('');
+}
+
+async function loadAutoTransfers(accId){
+  const{data:ats}=await db.from('auto_transfers').select('*').eq('account_id',accId);
+  const list=document.getElementById('autoTransferList');
+  if(!ats||!ats.length){list.innerHTML='<div style="font-size:13px;color:var(--text-sub);padding:8px 0">자동이체 없음</div>';return}
+  list.innerHTML=ats.map(at=>`
+    <div class="auto-card">
+      <div class="auto-head">
+        <div class="auto-amount">${fmt(at.amount)}</div>
+        <span class="auto-badge ${at.active?'':'off'}">${at.active?'활성':'중지'}</span>
+      </div>
+      <div class="auto-meta">매월 ${at.day_of_month}일 · ${at.note||''} · ${at.mode==='count'?`${at.done_count}/${at.total_count}회`:at.mode==='amount'?`목표 ${fmt(at.target_amount)}`:'무기한'}</div>
+      <div style="display:flex;gap:6px;margin-top:8px">
+        <button onclick="executeAutoTransfer('${at.id}')" style="flex:1;padding:7px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;font-weight:700">▶ 실행</button>
+        <button onclick="confirmDeleteAutoTransfer('${at.id}')" style="padding:7px 12px;background:#FEE2E2;color:var(--red);border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;font-weight:700">삭제</button>
+      </div>
+    </div>`).join('');
+}
+
+// ── My Account Detail (구성원) ──
+async function openMyAccountDetail(accId){
+  const{data:acc}=await db.from('accounts').select('*').eq('id',accId).single();
+  document.getElementById('myAccDetailName').textContent=acc.name;
+  document.getElementById('myAccDetailBalance').textContent=fmt(acc.balance);
+  const{monthly,yearly}=calcInt(acc.balance,acc.interest_rate,acc.interest_method);
+  document.getElementById('myAccDetailInterest').innerHTML=`<span>연 이자율</span><span class="val">${acc.interest_rate}%</span><span>방식</span><span class="val">${methodLabel(acc.interest_method)}</span><span>월 이자</span><span class="val">${fmt(monthly)}</span><span>연 이자</span><span class="val">${fmt(yearly)}</span>`;
+
+  const myGoalWrap=document.getElementById('myGoalWrap');
+  if(acc.type==='goal'&&acc.goal_amount){
+    myGoalWrap.style.display='block';
+    document.getElementById('myGoalTitle').textContent=acc.goal_title||'목표';
+    const pct=Math.min(100,Math.round(acc.balance/acc.goal_amount*100));
+    document.getElementById('myGoalPct').textContent=pct+'%';
+    document.getElementById('myGoalAmounts').textContent=`${fmt(acc.balance)} / ${fmt(acc.goal_amount)}`;
+    document.getElementById('myGoalBarFill').style.width=pct+'%';
+  } else myGoalWrap.style.display='none';
+
+  const myStarWrap=document.getElementById('myStarWrap');
+  if(acc.type==='star'){
+    myStarWrap.style.display='block';
+    const{data:history}=await db.from('star_history').select('*,star_types(name,icon)').eq('account_id',accId);
+    const totals={};(history||[]).forEach(h=>{totals[h.star_type_id]=(totals[h.star_type_id]||0)+h.amount});
+    const total=Object.values(totals).reduce((s,v)=>s+v,0);
+    document.getElementById('myTotalStars').textContent=total+'개';
+    const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
+    document.getElementById('myStarTypeList').innerHTML=(types||[]).map(t=>`<div style="display:flex;justify-content:space-between;padding:6px 0;border-bottom:1px solid #F3F4F6"><span>${t.icon||'⭐'} ${t.name}</span><span style="font-weight:700;color:var(--gold)">${totals[t.id]||0}개</span></div>`).join('');
+  } else myStarWrap.style.display='none';
+
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',accId).order('created_at',{ascending:false}).limit(100);
+  document.getElementById('myAccDetailTxList').innerHTML=(!txs||!txs.length)?'<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>':txs.map(tx=>txItemHtml(tx,false)).join('');
+  showScreen('myAccountDetailScreen');
+}
+
+// ── Transaction ──
+function openTxFromDetail(action){
+  txAction=action;txAccountId=detailAccount.id;
+  document.getElementById('txModalTitle').textContent={deposit:`${detailAccount.name} 입금`,withdraw:`${detailAccount.name} 출금`}[action];
+  document.getElementById('txAmount').value='';
+  document.getElementById('txNote').value='';
+  document.getElementById('txDate').value=localDT(new Date());
+  showModal('txModal');
+}
+
+async function submitTx(){
+  const amount=parseComma(document.getElementById('txAmount').value);
+  const note=document.getElementById('txNote').value;
+  const dateVal=document.getElementById('txDate').value;
+  if(!amount||amount<=0){showToast('금액을 입력해주세요');return}
+
+  const{data:acc}=await db.from('accounts').select('balance').eq('id',txAccountId).single();
+  const prev=acc.balance;
+  const newBal=txAction==='deposit'?prev+amount:prev-amount;
+  if(newBal<0){showToast('잔액이 부족해요');return}
+
+  await db.from('transactions').insert({account_id:txAccountId,type:txAction,amount,balance_after:newBal,note,created_at:dateVal?new Date(dateVal).toISOString():undefined});
+  await db.from('accounts').update({balance:newBal}).eq('id',txAccountId);
+
+  // 목표 달성 체크
+  if(detailAccount?.type==='goal'&&detailAccount?.goal_amount&&newBal>=detailAccount.goal_amount&&!detailAccount.goal_achieved){
+    await db.from('accounts').update({goal_achieved:true}).eq('id',txAccountId);
+    await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title:`🎉 목표 달성!`,content:`${detailAccount.name} 통장의 목표 ${fmt(detailAccount.goal_amount)}을 달성했어요!`});
+    showToast('🎉 목표 달성! 알림을 확인해보세요');
+  }
+
+  closeModal('txModal');showToast('완료됐어요!');
+  await openAccountDetail(txAccountId);
+  await loadHome();
+}
+
+async function submitAdjust(){
+  const newBal=parseComma(document.getElementById('adjustAmount').value);
+  const note=document.getElementById('adjustNote').value||'잔액 수정';
+  await db.from('transactions').insert({account_id:adjustAccountId,type:'adjust',amount:0,balance_after:newBal,note});
+  await db.from('accounts').update({balance:newBal}).eq('id',adjustAccountId);
+  closeModal('adjustModal');showToast('잔액이 수정됐어요!');
+  await openAccountDetail(adjustAccountId);await loadHome();
+}
+
+function openAdjust(){
+  adjustAccountId=detailAccount.id;
+  document.getElementById('adjustAmount').value=detailAccount.balance.toLocaleString('ko-KR');
+  document.getElementById('adjustNote').value='';
+  showModal('adjustModal');
+}
+
+async function submitEditTx(){
+  const type=document.getElementById('editTxType').value;
+  const amount=parseComma(document.getElementById('editTxAmount').value);
+  const balanceAfter=parseComma(document.getElementById('editTxBalance').value);
+  const note=document.getElementById('editTxNote').value;
+  const dateVal=document.getElementById('editTxDate').value;
+  const updateData={type,amount,balance_after:balanceAfter,note};
+  if(dateVal) updateData.created_at=new Date(dateVal).toISOString();
+  await db.from('transactions').update(updateData).eq('id',editTxId);
+  closeModal('editTxModal');showToast('수정됐어요!');
+  await openAccountDetail(detailAccount.id);
+}
+
+function openEditTx(txId,type,amount,balanceAfter,note,dateStr,e){
+  e.stopPropagation();editTxId=txId;
+  document.getElementById('editTxType').value=type;
+  document.getElementById('editTxAmount').value=amount.toLocaleString('ko-KR');
+  document.getElementById('editTxBalance').value=balanceAfter.toLocaleString('ko-KR');
+  document.getElementById('editTxNote').value=note;
+  document.getElementById('editTxDate').value=localDT(dateStr);
+  showModal('editTxModal');
+}
+
+function confirmDeleteTx(txId,e){
+  e.stopPropagation();
+  if(!confirm('이 거래내역을 삭제할까요?')) return;
+  deleteTx(txId);
+}
+async function deleteTx(txId){
+  await db.from('transactions').delete().eq('id',txId);
+  showToast('삭제됐어요');
+  await openAccountDetail(detailAccount.id);await loadHome();
+}
+
+// ── Rate ──
+function openRateModal(){
+  rateAccountId=detailAccount.id;
+  document.getElementById('rateInput').value=detailAccount.interest_rate;
+  document.getElementById('rateMethod').value=detailAccount.interest_method;
+  document.querySelectorAll('#rateMethodSeg .seg-btn').forEach((b,i)=>b.classList.toggle('active',(i===0&&detailAccount.interest_method==='simple')||(i===1&&detailAccount.interest_method==='compound')));
+  updateRatePreview();showModal('rateModal');
+}
+function updateRatePreview(){
+  const rate=parseFloat(document.getElementById('rateInput').value)||0;
+  const method=document.getElementById('rateMethod').value;
+  const bal=detailAccount?.balance||0;
+  const{monthly,yearly}=calcInt(bal,rate,method);
+  document.getElementById('ratePreview').innerHTML=`잔액 <b>${fmt(bal)}</b> 기준<br>월 이자: <b>${fmt(monthly)}</b><br>연 이자: <b>${fmt(yearly)}</b>`;
+}
+async function submitRate(){
+  const rate=parseFloat(document.getElementById('rateInput').value)||0;
+  const method=document.getElementById('rateMethod').value;
+  await db.from('accounts').update({interest_rate:rate,interest_method:method}).eq('id',rateAccountId);
+  closeModal('rateModal');showToast('이자율 변경됐어요!');
+  await openAccountDetail(rateAccountId);
+}
+
+// ── Interest ──
+function openInterestModal(){
+  interestAccountId=detailAccount.id;
+  document.getElementById('interestTitle').textContent=`${detailAccount.name} 이자 지급`;
+  document.getElementById('interestDate').value=todayStr();
+  document.getElementById('interestBreakdown').style.display='none';
+  interestTotal=0;calcInterestBreakdown();
+  showModal('interestModal');
+}
+async function calcInterestBreakdown(){
+  const payDateStr=document.getElementById('interestDate').value;
+  if(!payDateStr) return;
+  const payDate=new Date(payDateStr+'T23:59:59');
+  const acc=detailAccount;
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',interestAccountId).order('created_at',{ascending:true});
+  if(!txs||!txs.length){interestTotal=0;document.getElementById('interestBreakdown').style.display='none';return}
+  const lastInt=[...txs].reverse().find(t=>t.type==='interest');
+  const startDate=lastInt?new Date(lastInt.created_at):new Date(txs[0].created_at);
+  const relevant=txs.filter(t=>{const d=new Date(t.created_at);return d>=startDate&&d<=payDate&&['deposit','withdraw','adjust'].includes(t.type)});
+  let segs=[],prevBal=lastInt?lastInt.balance_after:0,prevDate=startDate;
+  for(const tx of relevant){
+    const txDate=new Date(tx.created_at);
+    if(prevBal>0&&txDate>prevDate){segs.push({balance:prevBal,days:(txDate-prevDate)/(1000*60*60*24)})}
+    prevBal=tx.balance_after;prevDate=txDate;
+  }
+  if(prevBal>0&&payDate>prevDate) segs.push({balance:prevBal,days:(payDate-prevDate)/(1000*60*60*24)});
+  if(!segs.length){interestTotal=0;document.getElementById('interestBreakdown').style.display='none';return}
+  let total=0,html='';
+  for(const seg of segs){
+    const int=acc.interest_method==='simple'?seg.balance*(acc.interest_rate/100)*(seg.days/365):seg.balance*(Math.pow(1+acc.interest_rate/100,seg.days/365)-1);
+    total+=int;html+=`${fmt(seg.balance)} × ${Math.round(seg.days)}일 = <b>${fmt(int)}</b><br>`;
+  }
+  html+=`<div style="font-size:14px;font-weight:700;color:var(--blue);border-top:1px solid #DBEAFE;margin-top:8px;padding-top:8px">합계: ${fmt(total)}</div>`;
+  interestTotal=total;
+  const box=document.getElementById('interestBreakdown');box.innerHTML=html;box.style.display='block';
+}
+async function submitInterest(){
+  if(interestTotal<=0){showToast('이자가 0원이에요');return}
+  const dateStr=document.getElementById('interestDate').value;
+  const newBal=detailAccount.balance+interestTotal;
+  await db.from('transactions').insert({account_id:interestAccountId,type:'interest',amount:Math.round(interestTotal),balance_after:Math.round(newBal),note:'이자 지급',created_at:new Date(dateStr+'T12:00:00').toISOString()});
+  await db.from('accounts').update({balance:Math.round(newBal)}).eq('id',interestAccountId);
+  closeModal('interestModal');showToast(`이자 ${fmt(interestTotal)} 지급됐어요!`);
+  await openAccountDetail(interestAccountId);await loadHome();
+}
+
+// ── Stars ──
+async function loadStarTypes(){
+  const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
+  const sel=document.getElementById('starTypeSelect');
+  if(!types||!types.length){
+    // 기본 별 종류 추가
+    const defaults=[{name:'심부름별',icon:'🛒',stars_per_task:3},{name:'학습별',icon:'📚',stars_per_task:5},{name:'구두별',icon:'👞',stars_per_task:1},{name:'빨래별',icon:'🧺',stars_per_task:2}];
+    for(const d of defaults){await db.from('star_types').insert({group_id:currentGroup.id,...d})}
+    const{data:newTypes}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
+    sel.innerHTML=(newTypes||[]).map(t=>`<option value="${t.id}">${t.icon||'⭐'} ${t.name} (${t.stars_per_task}개)</option>`).join('');
+  } else {
+    sel.innerHTML=types.map(t=>`<option value="${t.id}">${t.icon||'⭐'} ${t.name} (${t.stars_per_task}개)</option>`).join('');
+  }
+}
+
+function openGiveStars(){starsAction='give';starsAccountId=detailAccount.id;document.getElementById('starsModalTitle').textContent='⭐ 별 지급';document.getElementById('starCount').value='';document.getElementById('starNote').value='';loadStarTypes();showModal('starsModal')}
+function openTakeStars(){starsAction='take';starsAccountId=detailAccount.id;document.getElementById('starsModalTitle').textContent='❌ 별 차감';document.getElementById('starCount').value='';document.getElementById('starNote').value='';loadStarTypes();showModal('starsModal')}
+
+async function submitStars(){
+  const typeId=document.getElementById('starTypeSelect').value;
+  const count=parseInt(document.getElementById('starCount').value)||0;
+  const note=document.getElementById('starNote').value;
+  if(!count||count<=0){showToast('개수를 입력해주세요');return}
+  const amount=starsAction==='give'?count:-count;
+  await db.from('star_history').insert({account_id:starsAccountId,star_type_id:typeId,amount,note});
+  closeModal('starsModal');showToast(starsAction==='give'?`별 ${count}개 지급됐어요!`:`별 ${count}개 차감됐어요!`);
+  await openAccountDetail(starsAccountId);
+}
+
+function openConvertStars(){
+  document.getElementById('convertStarCount').value='';
+  document.getElementById('convertRate').value='';
+  document.getElementById('convertPreview').innerHTML='';
+  showModal('convertStarsModal');
+}
+function calcConvert(){
+  const count=parseInt(document.getElementById('convertStarCount').value)||0;
+  const rate=parseComma(document.getElementById('convertRate').value);
+  if(count&&rate) document.getElementById('convertPreview').innerHTML=`별 ${count}개 × ${fmt(rate)} = <b>${fmt(count*rate)}</b>`;
+}
+async function submitConvertStars(){
+  const count=parseInt(document.getElementById('convertStarCount').value)||0;
+  const rate=parseComma(document.getElementById('convertRate').value);
+  if(!count||!rate){showToast('개수와 금액을 입력해주세요');return}
+  const money=count*rate;
+  const newBal=detailAccount.balance+money;
+  await db.from('transactions').insert({account_id:detailAccount.id,type:'star_convert',amount:money,balance_after:newBal,note:`별 ${count}개 → ${fmt(money)}`});
+  await db.from('accounts').update({balance:newBal}).eq('id',detailAccount.id);
+  // 별 차감
+  const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id).limit(1);
+  if(types&&types.length) await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:types[0].id,amount:-count,note:'돈으로 전환'});
+  closeModal('convertStarsModal');showToast(`${fmt(money)} 적립됐어요!`);
+  await openAccountDetail(detailAccount.id);await loadHome();
+}
+
+// ── Auto Transfer ──
+function openAddAutoTransfer(){
+  document.getElementById('atAmount').value='';
+  document.getElementById('atDay').value='';
+  document.getElementById('atCount').value='';
+  document.getElementById('atNote').value='';
+  document.getElementById('atMode').value='count';
+  document.querySelectorAll('#atModeSeg .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  toggleAtMode();showModal('autoTransferModal');
+}
+function toggleAtMode(){
+  const mode=document.getElementById('atMode').value;
+  document.getElementById('atCountField').style.display=mode==='count'?'block':'none';
+  document.getElementById('atAmountField').style.display=mode==='amount'?'block':'none';
+}
+async function submitAutoTransfer(){
+  const amount=parseComma(document.getElementById('atAmount').value);
+  const day=parseInt(document.getElementById('atDay').value);
+  const mode=document.getElementById('atMode').value;
+  const count=parseInt(document.getElementById('atCount').value)||null;
+  const targetAmount=parseComma(document.getElementById('atTargetAmount').value)||null;
+  const note=document.getElementById('atNote').value;
+  if(!amount||!day){showToast('금액과 날짜를 입력해주세요');return}
+  await db.from('auto_transfers').insert({account_id:detailAccount.id,amount,day_of_month:day,mode,total_count:mode==='count'?count:null,target_amount:mode==='amount'?targetAmount:null,note});
+  closeModal('autoTransferModal');showToast('자동이체가 설정됐어요!');
+  await loadAutoTransfers(detailAccount.id);
+}
+async function executeAutoTransfer(atId){
+  const{data:at}=await db.from('auto_transfers').select('*').eq('id',atId).single();
+  const{data:acc}=await db.from('accounts').select('balance').eq('id',at.account_id).single();
+  const newBal=acc.balance+at.amount;
+  await db.from('transactions').insert({account_id:at.account_id,type:'deposit',amount:at.amount,balance_after:newBal,note:at.note||'자동이체'});
+  await db.from('accounts').update({balance:newBal}).eq('id',at.account_id);
+  await db.from('auto_transfers').update({done_count:at.done_count+1,last_transfer_date:todayStr()}).eq('id',atId);
+  showToast(`${fmt(at.amount)} 자동이체됐어요!`);
+  await openAccountDetail(at.account_id);await loadHome();
+}
+function confirmDeleteAutoTransfer(atId){if(!confirm('자동이체를 삭제할까요?'))return;deleteAutoTransfer(atId)}
+async function deleteAutoTransfer(atId){
+  await db.from('auto_transfers').delete().eq('id',atId);
+  showToast('삭제됐어요');await loadAutoTransfers(detailAccount.id);
+}
+
+// ── Add Account ──
+function showAddAccount(){
+  document.getElementById('newAccName').value='기본통장';
+  document.getElementById('newAccType').value='basic';
+  document.getElementById('newAccRate').value='0';
+  document.getElementById('newAccMethod').value='simple';
+  document.getElementById('newGoalTitle').value='';
+  document.getElementById('newGoalAmount').value='';
+  document.getElementById('goalFields').style.display='none';
+  document.querySelectorAll('#accTypeSeg .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('#newAccMethodSeg .seg-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  showModal('addAccountModal');
+}
+function toggleAccTypeFields(){
+  const type=document.getElementById('newAccType').value;
+  document.getElementById('goalFields').style.display=type==='goal'?'block':'none';
+}
+async function addAccount(){
+  const name=document.getElementById('newAccName').value.trim();
+  const type=document.getElementById('newAccType').value;
+  const rate=parseFloat(document.getElementById('newAccRate').value)||0;
+  const method=document.getElementById('newAccMethod').value;
+  const goalTitle=document.getElementById('newGoalTitle').value.trim();
+  const goalAmount=parseFloat(document.getElementById('newGoalAmount').value)||null;
+  if(!name){showToast('통장명을 입력해주세요');return}
+  await db.from('accounts').insert({group_id:currentGroup.id,user_id:detailMember.id,name,type,interest_rate:rate,interest_method:method,goal_title:goalTitle||null,goal_amount:goalAmount,balance:0});
+  closeModal('addAccountModal');showToast('통장이 추가됐어요!');
+  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  detailMember.accs=accs||[];
+  renderDetailAccountList(accs||[]);
+}
+
+// ── Add Member ──
+function showAddMember(){
+  document.getElementById('newMemberNickname').value='';
+  document.getElementById('newMemberPin').value='';
+  document.getElementById('newMemberJoinDate').value=todayStr();
+  showModal('addMemberModal');
+}
+async function addMember(){
+  const nickname=document.getElementById('newMemberNickname').value.trim();
+  const pin=document.getElementById('newMemberPin').value;
+  const joinDate=document.getElementById('newMemberJoinDate').value;
+  if(!nickname){showToast('별칭을 입력해주세요');return}
+  if(pin.length!==4){showToast('PIN 4자리를 입력해주세요');return}
+  // 기존 유저 확인
+  let{data:user}=await db.from('users').select('*').eq('nickname',nickname).single();
+  if(!user){
+    const{data:newUser,error}=await db.from('users').insert({nickname,pin}).select().single();
+    if(error){showToast('오류가 발생했어요');return}
+    user=newUser;
+  }
+  await db.from('group_members').insert({group_id:currentGroup.id,user_id:user.id,role:'member',join_date:joinDate});
+  // 기본통장 자동 생성
+  await db.from('accounts').insert({group_id:currentGroup.id,user_id:user.id,name:'기본통장',type:'basic',interest_rate:0,interest_method:'simple',balance:0});
+  closeModal('addMemberModal');showToast(`${nickname} 추가됐어요!`);
+  await loadAdminMembers();await loadHome();
+}
+
+// ── Edit ──
+function openEditName(){document.getElementById('editNameInput').value=detailMember.nickname;showModal('editNameModal')}
+async function submitEditName(){
+  const name=document.getElementById('editNameInput').value.trim();
+  if(!name){showToast('이름을 입력해주세요');return}
+  await db.from('users').update({nickname:name}).eq('id',detailMember.id);
+  closeModal('editNameModal');showToast('이름이 변경됐어요!');
+  document.getElementById('detailName').textContent=name;
+  await loadAdminMembers();
+}
+function openEditJoinDate(){document.getElementById('editJoinDateInput').value=detailMember.join_date||'';showModal('editJoinDateModal')}
+async function submitEditJoinDate(){
+  const date=document.getElementById('editJoinDateInput').value;
+  await db.from('group_members').update({join_date:date}).eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  closeModal('editJoinDateModal');showToast('개설일이 저장됐어요!');
+  document.getElementById('detailMeta').textContent=date?`개설일: ${date}`:'개설일 미설정';
+}
+function openEditAccName(){document.getElementById('editAccNameInput').value=detailAccount.name;showModal('editAccNameModal')}
+async function submitEditAccName(){
+  const name=document.getElementById('editAccNameInput').value.trim();
+  if(!name){showToast('통장명을 입력해주세요');return}
+  await db.from('accounts').update({name}).eq('id',detailAccount.id);
+  closeModal('editAccNameModal');showToast('통장명이 변경됐어요!');
+  document.getElementById('accDetailName').textContent=name;
+  detailAccount.name=name;
+}
+
+// ── Delete ──
+function confirmDeleteMember(){
+  if(!confirm(`${detailMember.nickname} 구성원을 삭제할까요?\n모든 데이터가 삭제돼요.`)) return;
+  deleteMember();
+}
+async function deleteMember(){
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  for(const acc of accs||[]){
+    await db.from('transactions').delete().eq('account_id',acc.id);
+    await db.from('star_history').delete().eq('account_id',acc.id);
+    await db.from('auto_transfers').delete().eq('account_id',acc.id);
+  }
+  await db.from('accounts').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  await db.from('group_members').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  showToast('삭제됐어요');switchTab('admin');await loadAdminMembers();await loadHome();
+}
+
+function confirmDeleteAccount(){
+  if(!confirm(`${detailAccount.name} 통장을 삭제할까요?`)) return;
+  deleteAccount();
+}
+async function deleteAccount(){
+  await db.from('transactions').delete().eq('account_id',detailAccount.id);
+  await db.from('star_history').delete().eq('account_id',detailAccount.id);
+  await db.from('auto_transfers').delete().eq('account_id',detailAccount.id);
+  await db.from('accounts').delete().eq('id',detailAccount.id);
+  showToast('삭제됐어요');showScreen('memberDetailScreen');
+  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  renderDetailAccountList(accs||[]);await loadHome();
+}
+
+// ── Notice ──
+async function loadNotices(){
+  const{data:notices}=await db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false});
+  const{data:reads}=await db.from('notice_reads').select('notice_id').eq('user_id',currentUser.id);
+  const{data:likes}=await db.from('notice_likes').select('notice_id').eq('user_id',currentUser.id);
+  const{data:allLikes}=await db.from('notice_likes').select('notice_id');
+  const{data:allComments}=await db.from('notice_comments').select('notice_id');
+  const readIds=new Set((reads||[]).map(r=>r.notice_id));
+  const likedIds=new Set((likes||[]).map(l=>l.notice_id));
+  const likeCnt={};(allLikes||[]).forEach(l=>{likeCnt[l.notice_id]=(likeCnt[l.notice_id]||0)+1});
+  const commentCnt={};(allComments||[]).forEach(c=>{commentCnt[c.notice_id]=(commentCnt[c.notice_id]||0)+1});
+  const isAdmin=currentGroupMember.role==='admin';
+  const container=document.getElementById('noticeList');
+  if(!notices||!notices.length){container.innerHTML='<div class="empty"><div class="ei">🔔</div>공지가 없어요</div>';return}
+  container.innerHTML=notices.map(n=>{
+    const isRead=readIds.has(n.id);const isLiked=likedIds.has(n.id);
+    const lc=likeCnt[n.id]||0;const cc=commentCnt[n.id]||0;
+    return`<div class="notice-card" style="${!isRead?'border-left:3px solid var(--gold)':''}">
+      <div class="notice-title">${!isRead?'🆕 ':''}${n.title}</div>
+      <div class="notice-content">${(n.content||'').replace(/\n/g,'<br>')}</div>
+      <div class="notice-meta"><span>${fmtDate(n.created_at)}</span><span>❤️${lc} 💬${cc}</span></div>
+      <div class="notice-actions">
+        <button class="like-btn ${isLiked?'liked':''}" onclick="toggleLike('${n.id}',${isLiked})">❤️ ${lc}</button>
+        <button class="comment-btn" onclick="toggleComments('${n.id}')">💬 ${cc}</button>
+        ${isAdmin?`<button class="notice-edit-btn" onclick="openEditNotice('${n.id}','${n.title.replace(/'/g,"\\'")}','${(n.content||'').replace(/'/g,"\\'")}')">✏️</button><button class="notice-del-btn" onclick="confirmDeleteNotice('${n.id}')">🗑️</button>`:''}
+      </div>
+      <div class="comments-wrap" id="comments-${n.id}" style="display:none"></div>
+    </div>`;
+  }).join('');
+  // 읽음 처리
+  const unread=notices.filter(n=>!readIds.has(n.id));
+  if(unread.length){
+    await db.from('notice_reads').upsert(unread.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});
+    await checkNoticeBadge();
+  }
+}
+
+async function toggleLike(noticeId,isLiked){
+  if(isLiked) await db.from('notice_likes').delete().eq('notice_id',noticeId).eq('user_id',currentUser.id);
+  else await db.from('notice_likes').insert({notice_id:noticeId,user_id:currentUser.id});
+  await loadNotices();
+}
+
+async function toggleComments(noticeId){
+  const sec=document.getElementById(`comments-${noticeId}`);
+  if(sec.style.display==='none'){sec.style.display='block';await renderComments(noticeId)}
+  else sec.style.display='none';
+}
+
+async function renderComments(noticeId){
+  const{data:comments}=await db.from('notice_comments').select('*,users(nickname)').eq('notice_id',noticeId).order('created_at',{ascending:true});
+  const sec=document.getElementById(`comments-${noticeId}`);
+  sec.innerHTML=(comments||[]).map(c=>`<div class="comment-item"><div class="comment-author">${c.users?.nickname||'?'}</div><div class="comment-text">${c.content}</div></div>`).join('')+
+    `<div class="comment-row"><input type="text" id="ci-${noticeId}" placeholder="댓글 입력..."><button class="comment-send" onclick="submitComment('${noticeId}')">전송</button></div>`;
+}
+
+async function submitComment(noticeId){
+  const input=document.getElementById(`ci-${noticeId}`);
+  const content=input.value.trim();if(!content)return;
+  await db.from('notice_comments').insert({notice_id:noticeId,user_id:currentUser.id,content});
+  input.value='';await renderComments(noticeId);await loadNotices();
+}
+
+function openWriteNotice(){editNoticeId=null;document.getElementById('noticeModalTitle').textContent='공지 작성';document.getElementById('noticeTitle').value='';document.getElementById('noticeContent').value='';showModal('noticeModal')}
+function openEditNotice(id,title,content){editNoticeId=id;document.getElementById('noticeModalTitle').textContent='공지 수정';document.getElementById('noticeTitle').value=title;document.getElementById('noticeContent').value=content;showModal('noticeModal')}
+async function submitNotice(){
+  const title=document.getElementById('noticeTitle').value.trim();
+  const content=document.getElementById('noticeContent').value.trim();
+  if(!title){showToast('제목을 입력해주세요');return}
+  if(editNoticeId) await db.from('notices').update({title,content,updated_at:new Date()}).eq('id',editNoticeId);
+  else await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title,content});
+  closeModal('noticeModal');showToast('저장됐어요!');await loadNotices();
+}
+function confirmDeleteNotice(id){if(!confirm('이 공지를 삭제할까요?'))return;deleteNotice(id)}
+async function deleteNotice(id){await db.from('notices').delete().eq('id',id);showToast('삭제됐어요');await loadNotices()}
+async function markAllRead(){
+  const{data:notices}=await db.from('notices').select('id').eq('group_id',currentGroup.id);
+  if(!notices||!notices.length)return;
+  await db.from('notice_reads').upsert(notices.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});
+  showToast('모두 읽음 처리됐어요!');await checkNoticeBadge();await loadNotices();
+}
+async function checkNoticeBadge(){
+  const{data:notices}=await db.from('notices').select('id').eq('group_id',currentGroup.id);
+  if(!notices||!notices.length){document.getElementById('noticeBadge').classList.remove('show');return}
+  const{data:reads}=await db.from('notice_reads').select('notice_id').eq('user_id',currentUser.id);
+  const readIds=new Set((reads||[]).map(r=>r.notice_id));
+  document.getElementById('noticeBadge').classList.toggle('show',notices.some(n=>!readIds.has(n.id)));
+}
+
+// ── Links ──
+async function loadLinks(){
+  const{data:links}=await db.from('links').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:true});
+  const isAdmin=currentGroupMember.role==='admin';
+  const container=document.getElementById('linkList');
+  if(!links||!links.length){container.innerHTML='<div class="empty"><div class="ei">🔗</div>링크가 없어요</div>';return}
+  container.innerHTML=links.map(l=>`
+    <div class="link-card">
+      <div class="link-icon">${l.icon||'🔗'}</div>
+      <div class="link-info"><div class="link-title-text">${l.title}</div><div class="link-url-text">${l.url}</div></div>
+      <div class="link-actions">
+        <button class="link-go" onclick="window.open('${l.url}','_blank')">열기</button>
+        ${isAdmin?`<button class="link-edt" onclick="openEditLink('${l.id}','${(l.icon||'').replace(/'/g,"\\'")}','${l.title.replace(/'/g,"\\'")}','${l.url.replace(/'/g,"\\'")}')">✏️</button><button class="link-del" onclick="confirmDeleteLink('${l.id}')">🗑️</button>`:''}
+      </div>
+    </div>`).join('');
+}
+function openAddLink(){editLinkId=null;document.getElementById('linkModalTitle').textContent='링크 추가';document.getElementById('linkIcon').value='🔗';document.getElementById('linkTitle').value='';document.getElementById('linkUrl').value='';showModal('linkModal')}
+function openEditLink(id,icon,title,url){editLinkId=id;document.getElementById('linkModalTitle').textContent='링크 수정';document.getElementById('linkIcon').value=icon;document.getElementById('linkTitle').value=title;document.getElementById('linkUrl').value=url;showModal('linkModal')}
+async function submitLink(){
+  const icon=document.getElementById('linkIcon').value||'🔗';
+  const title=document.getElementById('linkTitle').value.trim();
+  const url=document.getElementById('linkUrl').value.trim();
+  if(!title||!url){showToast('제목과 URL을 입력해주세요');return}
+  if(editLinkId) await db.from('links').update({icon,title,url}).eq('id',editLinkId);
+  else await db.from('links').insert({group_id:currentGroup.id,icon,title,url});
+  closeModal('linkModal');showToast('저장됐어요!');await loadLinks();
+}
+function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;deleteLink(id)}
+async function deleteLink(id){await db.from('links').delete().eq('id',id);showToast('삭제됐어요');await loadLinks()}
+
+// ── Invite Code ──
+async function regenerateInviteCode(){
+  const code=generateCode();
+  await db.from('groups').update({invite_code:code}).eq('id',currentGroup.id);
+  currentGroup.invite_code=code;
+  document.getElementById('groupInviteCode').textContent=code;
+  showToast('새 초대코드가 생성됐어요!');
+}
+
+// ── History ──
+async function loadAllTransactions(){
+  const{data:accs}=await db.from('accounts').select('id,name,user_id,users(nickname)').eq('group_id',currentGroup.id);
+  const accIds=(accs||[]).map(a=>a.id);
+  if(!accIds.length){document.getElementById('allTxList').innerHTML='<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>';return}
+  const{data:txs}=await db.from('transactions').select('*').in('account_id',accIds).order('created_at',{ascending:false}).limit(200);
+  const accMap={};(accs||[]).forEach(a=>{accMap[a.id]={name:a.name,nickname:a.users?.nickname}});
+  const list=document.getElementById('allTxList');
+  if(!txs||!txs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>';return}
+  list.innerHTML=txs.map(tx=>{
+    const acc=accMap[tx.account_id]||{};
+    const isPlus=['deposit','interest','star_convert'].includes(tx.type);
+    const isAdj=tx.type==='adjust';
+    const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
+    const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
+    const cls=isAdj?'adjust':isPlus?'plus':'minus';
+    const amtStr=isAdj?`→ ${fmt(tx.balance_after)}`:`${isPlus?'+':'-'}${fmt(tx.amount)}`;
+    return`<div class="tx-item"><div class="tx-icon">${icon}</div><div class="tx-info"><div class="tx-note">${acc.nickname||''} · ${tx.note||label}</div><div class="tx-date">${fmtDate(tx.created_at)}</div></div><div class="tx-right"><div class="tx-amt ${cls}">${amtStr}</div><div class="tx-bal">잔액 ${fmt(tx.balance_after)}</div></div></div>`;
+  }).join('');
+}
+
+// ── My Accounts ──
+async function loadMyAccounts(){
+  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+  const list=document.getElementById('myAccountList');
+  if(!accs||!accs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
+  list.innerHTML=accs.map(a=>`
+    <div class="account-card ${a.type}" onclick="openMyAccountDetail('${a.id}')">
+      <div class="acc-name">${a.type==='star'?'⭐':a.type==='goal'?'🎯':'📒'} ${a.name}</div>
+      <div class="acc-balance">${fmt(a.balance)}</div>
+      <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
+      ${a.type==='goal'&&a.goal_amount?`
+        <div class="goal-bar-wrap">
+          <div style="display:flex;justify-content:space-between"><span class="goal-pct">${Math.min(100,Math.round(a.balance/a.goal_amount*100))}%</span><span style="font-size:11px;color:var(--text-sub)">${fmt(a.balance)} / ${fmt(a.goal_amount)}</span></div>
+          <div class="goal-bar"><div class="goal-bar-fill" style="width:${Math.min(100,a.balance/a.goal_amount*100)}%"></div></div>
+        </div>`:''}
+    </div>`).join('');
+}
+
+// ── Tab ──
+function goBackFromAccount(){
+  if(currentGroupMember.role==='admin') showScreen('memberDetailScreen');
+  else showScreen('myAccountScreen');
+}
+
+function switchTab(tab){
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('tab-'+tab)?.classList.add('active');
+  const isAdmin=currentGroupMember?.role==='admin';
+
+  if(tab==='home'){showScreen(isAdmin?'adminHomeScreen':'memberHomeScreen');loadHome()}
+  else if(tab==='account'){
+    if(isAdmin){showScreen('historyScreen');loadAllTransactions()}
+    else{showScreen('myAccountScreen');loadMyAccounts()}
+  }
+  else if(tab==='admin'){showScreen('adminScreen');loadAdminMembers()}
+  else if(tab==='notice'){showScreen('noticeScreen');loadNotices()}
+  else if(tab==='etc'){showScreen('etcScreen');loadLinks()}
+  else if(tab==='history'){showScreen('historyScreen');loadAllTransactions()}
+}
+
+// Pull to refresh
+let touchStartY=0;
+document.addEventListener('touchstart',e=>{touchStartY=e.touches[0].clientY});
+document.addEventListener('touchend',e=>{
+  const diff=e.changedTouches[0].clientY-touchStartY;
+  if(diff>80&&window.scrollY===0){
+    const ind=document.getElementById('ptrIndicator');
+    if(ind){ind.classList.add('show');loadHome().then(()=>ind.classList.remove('show'))}
+  }
+});
+</script>
+</body>
+</html>
