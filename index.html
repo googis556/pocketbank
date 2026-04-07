@@ -419,8 +419,11 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <div id="gyeAccMembersWrap" style="display:none">
       <div class="card">
         <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div style="font-size:14px;font-weight:700">구성원</div>
-          <button class="add-btn" style="width:28px;height:28px;font-size:18px" onclick="openAddGyeMember()">+</button>
+          <div style="display:flex;gap:6px;align-items:center">
+  <div style="font-size:14px;font-weight:700">구성원</div>
+  <button onclick="window.gyeSortType='join';loadGyeAccMembers(gyeAccId)" style="background:#EFF6FF;border:none;border-radius:8px;padding:3px 8px;font-size:11px;color:var(--blue);cursor:pointer;font-family:'Noto Sans KR',sans-serif">가입순</button>
+  <button onclick="window.gyeSortType='name';loadGyeAccMembers(gyeAccId)" style="background:#EFF6FF;border:none;border-radius:8px;padding:3px 8px;font-size:11px;color:var(--blue);cursor:pointer;font-family:'Noto Sans KR',sans-serif">이름순</button>
+</div>
         </div>
         <div id="gyeAccMemberList"></div>
       </div>
@@ -445,6 +448,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button class="act-btn rat" onclick="openRateModal()">⚙️ 이자율</button>
       <button class="act-btn edt" onclick="openEditAccName()">📝 통장명</button>
     </div>
+    <div id="accDetailTxWrap">
     <div class="sec-title" style="margin-top:11px">거래내역</div>
     <div class="tx-list" id="accDetailTxList"></div>
     <button class="del-btn-full" onclick="confirmDeleteAccount()">🗑️ 통장 삭제</button>
@@ -494,6 +498,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 
   <!-- 전체 내역 (관리자 통장탭) -->
 
+  <div class="screen" id="adminAccListScreen">
+  <div class="sec-title">통장 목록</div>
+  <div id="adminAccList"></div>
+</div>
   <div class="screen" id="historyScreen">
     <button class="back-btn" id="historyBackBtn" onclick="switchTab('home')" style="display:none">← 뒤로</button>
     <div class="sec-title">전체 거래내역</div>
@@ -1240,6 +1248,7 @@ function renderDetailAccList(accs){
 
 // ── Account Detail ──
 async function openAccDetail(accId){
+  const fromAccount=currentTab==='account';
   const{data:acc}=await db.from('accounts').select('*').eq('id',accId).single();
   detailAccount=acc;
   document.getElementById('accDetailName').textContent=acc.name;
@@ -1280,16 +1289,22 @@ async function openAccDetail(accId){
   if(currentGroup.type==='gye'){
     document.getElementById('accDetailBack').onclick=()=>{switchTab('admin')};
   } else {
-    document.getElementById('accDetailBack').onclick=()=>{showScreen('memberDetailScreen')};
+    document.getElementById('accDetailBack').onclick=()=>{
+      if(currentTab==='account') switchTab('account');
+      else showScreen('memberDetailScreen');
+    };
   }
+  document.getElementById('accDetailTxWrap').style.display=fromAccount?'block':'none';
   showScreen('accDetailScreen');
 }
 
 async function loadGyeAccMembers(accId){
   // gye_account_members 테이블이 없을 수 있으므로 group_members에서 admin 제외한 전체로 대체
   const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+  const sortType=window.gyeSortType||'join';
   const list=document.getElementById('gyeAccMemberList');
   if(!gms||!gms.length){list.innerHTML='<div style="font-size:13px;color:var(--text-sub);padding:8px 0">구성원이 없어요</div>';renderPaymentTable([]);return}
+  if(sortType==='name') gms.sort((a,b)=>a.users.nickname.localeCompare(b.users.nickname));
   list.innerHTML=gms.map(m=>`
     <div class="acc-member-row">
       <div class="acc-member-name">${avEl(m.users.photo,'👦',28)} ${m.users.nickname}</div>
@@ -1576,7 +1591,7 @@ function confirmDeleteAt(atId){if(!confirm('자동이체를 삭제할까요?'))r
 
 // ── Add Account (가족 구성원용) ──
 function showAddMemberAccount(){
-  addAccTargetUserId=detailMember.id;
+  addAccTargetUserId=detailMember.user_id;
   document.getElementById('newAccName').value='기본통장';
   document.getElementById('newAccType').value='basic';
   document.getElementById('newAccRate').value='0';
@@ -1648,10 +1663,10 @@ async function submitEditAccName(){
 // ── Delete ──
 function confirmDeleteMember(){if(!confirm(`${detailMember.nickname} 구성원을 삭제할까요?\n모든 데이터가 삭제돼요.`))return;deleteMember()}
 async function deleteMember(){
-  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id).eq('user_id',detailMember.user_id);
   for(const acc of accs||[]){await db.from('transactions').delete().eq('account_id',acc.id);await db.from('star_history').delete().eq('account_id',acc.id);await db.from('auto_transfers').delete().eq('account_id',acc.id)}
-  await db.from('accounts').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
-  await db.from('group_members').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.id);
+  await db.from('accounts').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.user_id);
+  await db.from('group_members').delete().eq('group_id',currentGroup.id).eq('user_id',detailMember.user_id);
   showToast('삭제됐어요');switchTab('admin');
 }
 function confirmDeleteAccount(){if(!confirm(`${detailAccount.name} 통장을 삭제할까요?`))return;deleteAccount()}
@@ -1696,6 +1711,24 @@ async function regenInviteCode(){
 }
 
 // ── All Transactions ──
+  async function loadAdminAccList(){
+  const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+  const list=document.getElementById('adminAccList');
+  if(!members||!members.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>구성원이 없어요</div>';return}
+  let html='';
+  for(const m of members){
+    const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
+    if(!accs||!accs.length) continue;
+    accs.forEach(a=>{
+      html+=`<div class="account-card" onclick="openAccDetail('${a.id}')">
+        <div class="acc-name">${m.users.nickname} · ${a.name}</div>
+        <div class="acc-balance">${fmt(a.balance)}</div>
+        <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
+      </div>`;
+    });
+  }
+  list.innerHTML=html||'<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';
+}
 async function loadAllTransactions(){
   const{data:accs}=await db.from('accounts').select('id,name,user_id').eq('group_id',currentGroup.id);
   const accIds=(accs||[]).map(a=>a.id);
@@ -1853,9 +1886,9 @@ function switchTab(tab){
     historyBackBtn.style.display='none';
   } else if(tab==='account'){
     if(isAdmin){
-      showScreen('historyScreen');
+      showScreen('adminAccListScreen');
       historyBackBtn.style.display='none';
-      loadAllTransactions();
+      loadAdminAccList();
     } else {
       showScreen('myAccScreen');
       loadMyAccounts();
