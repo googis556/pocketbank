@@ -1273,9 +1273,6 @@ async function openAccDetail(accId){
     await loadGyeAccMembers(accId);
   } else document.getElementById('gyeAccMembersWrap').style.display='none';
 
-  // Auto transfers
-  await loadAutoTransfers(accId);
-
   // Transactions
   const{data:txs}=await db.from('transactions').select('*').eq('account_id',accId).order('created_at',{ascending:false}).limit(100);
   document.getElementById('accDetailTxList').innerHTML=(!txs||!txs.length)?'<div class="empty"><div class="ei">📭</div>거래내역이 없어요</div>':txs.map(tx=>txHtml(tx,true)).join('');
@@ -1291,7 +1288,7 @@ async function openAccDetail(accId){
   }
   document.getElementById('accDetailTxWrap').style.display='block';
 document.getElementById('accActions').style.display=fromAccount?'none':'flex';
-document.querySelector('#accDetailScreen .act-row:nth-child(2)').style.display=fromAccount?'none':'flex';
+document.querySelectorAll('#accDetailScreen .act-row').forEach(el=>el.style.display=fromAccount?'none':'flex');
 document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
   showScreen('accDetailScreen');
 }
