@@ -319,12 +319,8 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="bc-amount" id="adminTotal">₩0</div>
       <div id="adminSummary" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.8;line-height:1.9"></div>
     </div>
-    <div class="sec-title">
-      최근 거래내역
-      <button style="background:var(--blue-light);color:var(--blue);border:none;border-radius:9px;padding:5px 11px;font-size:12px;cursor:pointer;font-weight:700" onclick="switchTab('account')">전체보기</button>
-    </div>
-    <div id="adminRecentTx" class="tx-list"></div>
-    <button id="loadMoreBtn" onclick="loadMoreTx()" style="display:none;width:100%;padding:10px;background:#EFF6FF;color:var(--blue);border:none;border-radius:11px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;margin-top:7px;font-weight:700">더보기 ▼</button>
+    <div class="sec-title">최근 활동</div>
+<div id="adminRecentActivity"></div>
   </div>
 
   <!-- 구성원 홈 -->
@@ -347,8 +343,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <button onclick="toggleMemberListForMember()" style="width:100%;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-bottom:10px;box-shadow:var(--shadow)">👥 구성원 보기</button>
       <div id="memberListForMember" style="display:none"></div>
     </div>
-    <div class="sec-title">내 통장</div>
-    <div id="memberAccList"></div>
+    <div class="sec-title">최근 활동</div>
+<div id="memberRecentActivity"></div>
+<div class="sec-title" style="margin-top:14px">내 통장</div>
+<div id="memberAccList"></div>
   </div>
 
   <!-- 관리 탭 -->
@@ -1077,7 +1075,8 @@ async function loadHome(){
     const accIds=(accs||[]).map(a=>a.id);
     if(accIds.length){
       const{data:txs}=await db.from('transactions').select('*,accounts(name,user_id,users(nickname))').in('account_id',accIds).order('created_at',{ascending:false}).limit(100);
-      recentTxAll=txs||[];recentTxShown=10;renderRecentTx();
+      recentTxAll=txs||[];recentTxShown=10;
+await loadRecentActivity('adminRecentActivity');
     }
  } else {
     document.getElementById('memberName').textContent=currentUser.nickname;
@@ -1087,6 +1086,7 @@ async function loadHome(){
     const total=accs.reduce((s,a)=>s+a.balance,0);
     document.getElementById('memberTotal').textContent=fmt(total);
     document.getElementById('memberViewMembersWrap').style.display=currentGroup.type==='gye'?'block':'none';
+    await loadRecentActivity('memberRecentActivity');
     renderMemberAccCards(accs,document.getElementById('memberAccList'));
   }
 }
@@ -2032,6 +2032,29 @@ function showDayDetail(day){
     wrap.style.display='none';
   }
 } 
+  async function loadRecentActivity(containerId){
+  const container=document.getElementById(containerId);
+  if(!container)return;
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
+  const accIds=(accs||[]).map(a=>a.id);
+  let items=[];
+  if(accIds.length){
+    const{data:txs}=await db.from('transactions').select('*').in('account_id',accIds).order('created_at',{ascending:false}).limit(5);
+    (txs||[]).forEach(function(tx){
+      const isPlus=['deposit','interest','star_convert'].includes(tx.type);
+      const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
+      const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
+      items.push({time:new Date(tx.created_at),html:'<div class="tx-item"><div class="tx-icon">'+icon+'</div><div class="tx-info"><div class="tx-note">'+(tx.note||label)+'</div><div class="tx-date">'+fmtDate(tx.created_at)+'</div></div><div class="tx-right"><div class="tx-amt '+(isPlus?'plus':'minus')+'">'+fmt(tx.amount)+'</div></div></div>'});
+    });
+  }
+  const{data:notices}=await db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false}).limit(3);
+  (notices||[]).forEach(function(n){
+    items.push({time:new Date(n.created_at),html:'<div class="tx-item"><div class="tx-icon">🔔</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+  });
+  items.sort(function(a,b){return b.time-a.time});
+  items=items.slice(0,7);
+  container.innerHTML=items.length?'<div class="tx-list">'+items.map(function(i){return i.html}).join('')+'</div>':'<div class="empty"><div class="ei">📭</div>최근 활동이 없어요</div>';
+}
   async function toggleMemberListForMember(){
   const wrap=document.getElementById('memberListForMember');
   if(wrap.style.display==='none'){
