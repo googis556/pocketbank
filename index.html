@@ -683,7 +683,12 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="modal">
     <h3 id="txTitle">입금</h3>
     <div class="ig"><label>금액 (원)</label><input type="text" id="txAmount" inputmode="numeric" oninput="fmtComma(this)"></div>
-    <div class="ig"><label>메모</label><input type="text" id="txNote" placeholder="선택사항"></div>
+    <div class="ig" id="txMemberWrap" style="display:none"><label>입금자</label>
+  <select id="txMember">
+    <option value="">선택 안함</option>
+  </select>
+</div>
+<div class="ig"><label>메모</label><input type="text" id="txNote" placeholder="선택사항"></div>
     <div class="ig"><label>날짜</label><input type="datetime-local" id="txDate"></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('txModal')">취소</button>
