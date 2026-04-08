@@ -1088,13 +1088,15 @@ function renderMemberAccCards(accs,container){
 
 function accCardHtml(a,isAdmin){
   const pct=a.type==='goal'&&a.goal_amount?Math.min(100,Math.round(a.balance/a.goal_amount*100)):0;
-  const onclick=isAdmin?`openAccDetail('${a.id}')`:`openMyAccDetail('${a.id}')`;
-  return`<div class="account-card ${a.type}" onclick="${onclick}">
-    <div class="acc-name">${a.type==='star'?'⭐':a.type==='goal'?'🎯':'📒'} ${a.name}</div>
-    <div class="acc-balance">${fmt(a.balance)}</div>
-    <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
-    ${a.type==='goal'&&a.goal_amount?`<div class="goal-bar-wrap"><div style="display:flex;justify-content:space-between;margin-top:5px"><span class="goal-pct">${pct}%</span><span style="font-size:11px;color:var(--text-sub)">${fmt(a.balance)} / ${fmt(a.goal_amount)}</span></div><div class="goal-bar"><div class="goal-bar-fill" style="width:${pct}%"></div></div></div>`:''}
-  </div>`;
+  const onclick=isAdmin?'openAccDetail(\''+a.id+'\')':'openMyAccDetail(\''+a.id+'\')';
+  const goalBar=a.type==='goal'&&a.goal_amount?'<div class="goal-bar-wrap"><div style="display:flex;justify-content:space-between;margin-top:5px"><span class="goal-pct">'+pct+'%</span><span style="font-size:11px;color:#6B7280">'+fmt(a.balance)+' / '+fmt(a.goal_amount)+'</span></div><div class="goal-bar"><div class="goal-bar-fill" style="width:'+pct+'%"></div></div></div>':'';
+  const icon=a.type==='star'?'⭐':a.type==='goal'?'🎯':'📒';
+  return'<div class="account-card '+a.type+'" onclick="'+onclick+'">'
+    +'<div class="acc-name">'+icon+' '+a.name+'</div>'
+    +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
+    +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
+    +goalBar
+    +'</div>';
 }
 
 function txHtml(tx,isAdmin){
