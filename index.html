@@ -254,8 +254,9 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   </div>
   <div class="login-card" id="loginCard">
     <h3>로그인</h3>
-    <div class="ig"><label>별칭</label><input type="text" id="loginNickname" placeholder="별칭 입력" autocomplete="off"></div>
-    <div class="ig"><label>PIN</label><input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="4자리"></div>
+    <div class="ig"><label>별칭</label><input type="text" id="loginNickname" placeholder="별칭 입력" autocomplete="off" onblur="checkLoginType()"></div>
+    <div class="ig" id="loginPinWrap"><label>PIN</label><input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="4자리"></div>
+<div class="ig" id="loginPwdWrap" style="display:none"><label>비밀번호</label><input type="password" id="loginPwd" placeholder="비밀번호"></div>
     <div class="save-row"><input type="checkbox" id="saveNick"><label for="saveNick">별칭 저장</label></div>
     <button class="btn-main" onclick="doLogin()">로그인</button>
     <div class="divider">처음이신가요?</div>
@@ -565,6 +566,15 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="modal">
     <h3>개인정보 수정</h3>
     <div class="ig"><label>현재 별칭</label><input type="text" id="myInfoNick" readonly style="background:#F3F4F6"></div>
+    <div class="ig">
+  <label>로그인 방식</label>
+  <div class="segment" id="loginTypeSeg">
+    <button class="seg-btn active" data-val="pin" onclick="pickSeg(this,'myLoginType');toggleLoginFields()">PIN만</button>
+    <button class="seg-btn" data-val="password" onclick="pickSeg(this,'myLoginType');toggleLoginFields()">비밀번호만</button>
+    <button class="seg-btn" data-val="both" onclick="pickSeg(this,'myLoginType');toggleLoginFields()">둘 다</button>
+  </div>
+  <input type="hidden" id="myLoginType" value="pin">
+</div>
     <div class="ig"><label>새 PIN (4자리)</label><input type="password" inputmode="numeric" maxlength="4" id="myInfoPin" placeholder="변경하지 않으면 비워두세요"></div>
     <div class="ig"><label>새 비밀번호</label><input type="password" id="myInfoPwd" placeholder="변경하지 않으면 비워두세요"></div>
     <div class="ig"><label>비밀번호 확인</label><input type="password" id="myInfoPwdConfirm" placeholder="비밀번호 확인"></div>
@@ -954,21 +964,50 @@ window.onload=()=>{
   }
 };
 
+async function checkLoginType(){
+  const nick=document.getElementById('loginNickname').value.trim();
+  if(!nick)return;
+  const{data:user}=await db.from('users').select('login_type').eq('nickname',nick).single();
+  if(!user)return;
+  const lt=user.login_type||'pin';
+  document.getElementById('loginPinWrap').style.display=lt==='password'?'none':'block';
+  document.getElementById('loginPwdWrap').style.display=lt==='pin'?'none':'block';
+}  
 function showReg(){document.getElementById('loginCard').style.display='none';document.getElementById('regCard').style.display='block'}
 function showLogin(){document.getElementById('loginCard').style.display='block';document.getElementById('regCard').style.display='none'}
 
 async function doLogin(){
+  // 별칭 입력시 로그인 방식에 따라 필드 변경은 별도 함수로
   const nick=document.getElementById('loginNickname').value.trim();
   const pin=document.getElementById('loginPin').value;
-  if(!nick||pin.length!==4){showToast('별칭과 PIN을 입력해주세요');return}
+  const pwd=document.getElementById('loginPwd').value;
+  if(!nick){showToast('별칭을 입력해주세요');return}
+  // 별칭으로 유저 먼저 찾기
+  const{data:userInfo}=await db.from('users').select('login_type').eq('nickname',nick).single();
+  if(userInfo){
+    const lt=userInfo.login_type||'pin';
+    if(lt==='pin'&&pin.length!==4){showToast('PIN 4자리를 입력해주세요');return}
+    if(lt==='password'&&!pwd){showToast('비밀번호를 입력해주세요');return}
+    if(lt==='both'&&(pin.length!==4||!pwd)){showToast('PIN과 비밀번호를 모두 입력해주세요');return}
+  }
   const prog=document.getElementById('loginProgress');
   const fill=document.getElementById('loginProgressFill');
   prog.style.display='block';fill.style.width='0%';
   let pct=0;const iv=setInterval(()=>{pct=Math.min(pct+8,85);fill.style.width=pct+'%'},100);
-  let{data:user}=await db.from('users').select('*').eq('nickname',nick).eq('pin',pin).single();
-  if(!user){
-    const{data:user2}=await db.from('users').select('*').eq('nickname',nick).eq('password',pin).single();
-    user=user2;
+  let user=null;
+  if(userInfo){
+    const lt=userInfo.login_type||'pin';
+    if(lt==='pin'){
+      const{data:u}=await db.from('users').select('*').eq('nickname',nick).eq('pin',pin).single();
+      user=u;
+    } else if(lt==='password'){
+      const{data:u}=await db.from('users').select('*').eq('nickname',nick).eq('password',pwd).single();
+      user=u;
+    } else if(lt==='both'){
+      const{data:u}=await db.from('users').select('*').eq('nickname',nick).eq('pin',pin).eq('password',pwd).single();
+      user=u;
+    }
+  }
   }
   clearInterval(iv);
   if(!user){fill.style.width='0%';setTimeout(()=>{prog.style.display='none'},300);showToast('별칭 또는 PIN이 틀렸어요');return}
@@ -1930,14 +1969,25 @@ async function deleteGlobalLink(id){
   document.getElementById('myInfoPin').value='';
   document.getElementById('myInfoPwd').value='';
   document.getElementById('myInfoPwdConfirm').value='';
+  const lt=currentUser.login_type||'pin';
+  document.getElementById('myLoginType').value=lt;
+  document.querySelectorAll('#loginTypeSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val===lt)});
+  toggleLoginFields();
   showModal('myInfoModal');
+}
+
+function toggleLoginFields(){
+  const lt=document.getElementById('myLoginType').value;
+  document.getElementById('myInfoPin').parentElement.style.display=lt==='password'?'none':'block';
+  document.getElementById('myInfoPwd').parentElement.style.display=lt==='pin'?'none':'block';
+  document.getElementById('myInfoPwdConfirm').parentElement.style.display=lt==='pin'?'none':'block';
 }
 
 async function submitMyInfo(){
   const pin=document.getElementById('myInfoPin').value;
   const pwd=document.getElementById('myInfoPwd').value;
   const pwdConfirm=document.getElementById('myInfoPwdConfirm').value;
-  const upd={};
+  const upd={login_type:document.getElementById('myLoginType').value};
   if(pin){
     if(pin.length!==4){showToast('PIN은 4자리여야 해요');return}
     upd.pin=pin;
