@@ -2052,7 +2052,7 @@ function showDayDetail(day){
   });
   items.sort(function(a,b){return b.time-a.time});
   items=items.slice(0,7);
-  container.innerHTML=items.length?'<div class="tx-list">'+items.map(function(i){return i.html}).join('')+'</div>':'<div class="empty"><div class="ei">📭</div>최근 활동이 없어요</div>';
+  container.innerHTML=items.length?'<div class="tx-list">'+items.map(function(i){return i.html}).join('')+'</div>':'';
 }
   async function toggleMemberListForMember(){
   const wrap=document.getElementById('memberListForMember');
