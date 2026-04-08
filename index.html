@@ -1104,7 +1104,7 @@ function txHtml(tx,isAdmin){
   const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
   const cls=isAdj?'adj':isPlus?'plus':'minus';
   const amtStr=isAdj?`→ ${fmt(tx.balance_after)}`:`${isPlus?'+':'-'}${fmt(tx.amount)}`;
-  const adminBtns=isAdmin?`<div class="tx-acts"><button class="tx-btn" onclick="openEditTx('${tx.id}','${tx.type}',${tx.amount},${tx.balance_after},'${(tx.note||'').replace(/'/g,"\\'")}','${tx.created_at}',event)">✏️</button><button class="tx-btn" onclick="confirmDeleteTx('${tx.id}',event)">🗑️</button></div>`:'';
+  const adminBtns=isAdmin?'<div class="tx-acts"><button class="tx-btn" onclick="openEditTx(\''+tx.id+'\',\''+tx.type+'\','+tx.amount+','+tx.balance_after+',\''+(tx.note||'').replace(/'/g,"\\'")+'\',\''+tx.created_at+'\',event)">✏️</button><button class="tx-btn" onclick="confirmDeleteTx(\''+tx.id+'\',event)">🗑️</button></div>':'';
   return`<div class="tx-item"><div class="tx-icon">${icon}</div><div class="tx-info"><div class="tx-note">${tx.note||label}</div><div class="tx-date">${fmtDate(tx.created_at)}</div></div><div class="tx-right"><div class="tx-amt ${cls}">${amtStr}</div><div class="tx-bal">잔액 ${fmt(tx.balance_after)}</div></div>${adminBtns}</div>`;
 }
 
