@@ -584,7 +584,6 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="segment" id="grpTypeSeg">
         <button class="seg-btn active" data-val="family" onclick="pickSeg(this,'grpType')">👨‍👩‍👧 가족</button>
         <button class="seg-btn" data-val="gye" onclick="pickSeg(this,'grpType')">🤝 계모임</button>
-        <button class="seg-btn" data-val="friend" onclick="pickSeg(this,'grpType')">👥 친목</button>
       </div>
       <input type="hidden" id="grpType" value="family">
     </div>
@@ -906,8 +905,8 @@ function methodLabel(m){return m==='compound'?'복리':'단리'}
 function fmtComma(el){const raw=el.value.replace(/[^0-9]/g,'');el.value=raw?Number(raw).toLocaleString('ko-KR'):''}
 function parseComma(v){return parseFloat((v||'0').replace(/,/g,''))||0}
 function genCode(){return'PB-'+Math.random().toString(36).substring(2,6).toUpperCase()}
-const typeIcon={family:'👨‍👩‍👧',gye:'🤝',friend:'👥'};
-const typeLabel={family:'가족',gye:'계모임',friend:'친목'};
+const typeIcon={family:'👨‍👩‍👧',gye:'👥',friend:'👥'};
+const typeLabel={family:'가족',gye:'친목',friend:'친목'};
 
 // FIXED segment picker
 function pickSeg(btn,hiddenId){
