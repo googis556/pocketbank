@@ -343,6 +343,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       <div class="bc-label">내 총 잔액</div>
       <div class="bc-amount" id="memberTotal">₩0</div>
     </div>
+    <div id="memberViewMembersWrap" style="display:none">
+      <button onclick="toggleMemberListForMember()" style="width:100%;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-bottom:10px;box-shadow:var(--shadow)">👥 구성원 보기</button>
+      <div id="memberListForMember" style="display:none"></div>
+    </div>
     <div class="sec-title">내 통장</div>
     <div id="memberAccList"></div>
   </div>
@@ -1079,6 +1083,7 @@ async function loadHome(){
     accs=myAccs||[];
     const total=accs.reduce((s,a)=>s+a.balance,0);
     document.getElementById('memberTotal').textContent=fmt(total);
+    document.getElementById('memberViewMembersWrap').style.display=currentGroup.type==='gye'?'block':'none';
     renderMemberAccCards(accs,document.getElementById('memberAccList'));
   }
 }
@@ -2010,6 +2015,18 @@ function showDayDetail(day){
     wrap.style.display='none';
   }
 } 
+  async function toggleMemberListForMember(){
+  const wrap=document.getElementById('memberListForMember');
+  if(wrap.style.display==='none'){
+    wrap.style.display='block';
+    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    wrap.innerHTML='<div class="card">'+(gms||[]).map(function(m){
+      return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+avEl(m.users.photo,'👦',36)+'<span style="font-size:14px;font-weight:700">'+m.users.nickname+'</span></div>';
+    }).join('')+'</div>';
+  } else {
+    wrap.style.display='none';
+  }
+}
 // ── Refresh FAB ──
 function refreshCurrentTab(){switchTab(currentTab)}
 
