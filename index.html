@@ -1856,15 +1856,14 @@ async function loadLinks(){
   const isAdmin=currentGM.role==='admin';
   const container=document.getElementById('linkList');
   if(!links||!links.length){container.innerHTML='<div class="empty"><div class="ei">🔗</div>링크가 없어요</div>';return}
-  container.innerHTML=links.map(l=>`
-    <div class="link-card">
-      <div style="font-size:22px;flex-shrink:0">${l.icon||'🔗'}</div>
-      <div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">${l.title}</div><div style="font-size:11px;color:var(--text-sub);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">${l.url}</div></div>
-      <div style="display:flex;gap:6px;flex-shrink:0">
-        <button class="link-go" onclick="window.open('${l.url}','_blank')">열기</button>
-        ${isAdmin?`<button class="link-edt" onclick="openEditLink('${l.id}','${(l.icon||'').replace(/'/g,"\\'")}','${l.title.replace(/'/g,"\\'")}','${l.url.replace(/'/g,"\\'")}')">✏️</button><button class="link-del" onclick="confirmDeleteLink('${l.id}')">🗑️</button>`:''}
-      </div>
-    </div>`).join('');
+  container.innerHTML=links.map(function(l){
+    const adminBtns=isAdmin?'<button class="link-edt" onclick="openEditLink(\''+l.id+'\',\''+(l.icon||'').replace(/'/g,"\\'")+'\',\''+l.title.replace(/'/g,"\\'")+'\',\''+l.url.replace(/'/g,"\\'")+'\')">✏️</button><button class="link-del" onclick="confirmDeleteLink(\''+l.id+'\')">🗑️</button>':'';
+    return'<div class="link-card">'
+      +'<div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+l.url+'</div></div>'
+      +'<div style="display:flex;gap:6px;flex-shrink:0"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+adminBtns+'</div>'
+      +'</div>';
+  }).join('');
 }
 function openAddLink(){editLinkId=null;document.getElementById('linkModalTitle').textContent='링크 추가';document.getElementById('linkIcon').value='🔗';document.getElementById('linkTitleInput').value='';document.getElementById('linkUrl').value='';showModal('linkModal')}
 function openEditLink(id,icon,title,url){editLinkId=id;document.getElementById('linkModalTitle').textContent='링크 수정';document.getElementById('linkIcon').value=icon;document.getElementById('linkTitleInput').value=title;document.getElementById('linkUrl').value=url;showModal('linkModal')}
