@@ -1418,15 +1418,25 @@ async function openMyAccDetail(accId){
 }
 
 // ── Transaction ──
-function openTx(action){
+async function openTx(action){
   txAction=action;txAccountId=detailAccount.id;
-  document.getElementById('txTitle').textContent={deposit:`${detailAccount.name} 입금`,withdraw:`${detailAccount.name} 출금`}[action];
+  document.getElementById('txTitle').textContent={deposit:detailAccount.name+' 입금',withdraw:detailAccount.name+' 출금'}[action];
   document.getElementById('txAmount').value='';
   document.getElementById('txNote').value='';
   document.getElementById('txDate').value=localDT(new Date());
+  // 계모임 통장이면 구성원 선택 표시
+  const isGye=currentGroup.type==='gye'&&!detailAccount.user_id;
+  const memberWrap=document.getElementById('txMemberWrap');
+  const memberSel=document.getElementById('txMember');
+  if(isGye&&action==='deposit'){
+    memberWrap.style.display='block';
+    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    memberSel.innerHTML='<option value="">선택 안함</option>'+(gms||[]).map(function(m){return'<option value="'+m.user_id+'">'+m.users.nickname+'</option>'}).join('');
+  } else {
+    memberWrap.style.display='none';
+  }
   showModal('txModal');
 }
-
 async function submitTx(){
   const amount=parseComma(document.getElementById('txAmount').value);
   const note=document.getElementById('txNote').value;
