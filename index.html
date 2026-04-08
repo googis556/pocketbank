@@ -969,15 +969,15 @@ async function loadGroupSelect(){
   const{data:gms}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
   const list=document.getElementById('groupList');
   if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
-  list.innerHTML=gms.map(m=>`
-    <div class="group-card" onclick="selectGroup('${m.group_id}','${m.role}')">
-      <div class="group-icon">${typeIcon[m.groups.type]||'👥'}</div>
-      <div class="group-info">
-        <div class="group-name">${m.groups.name}</div>
-        <div class="group-meta">${typeLabel[m.groups.type]||'그룹'}</div>
-      </div>
-      ${m.role==='admin'?'<div class="group-role-badge">은행장</div>':''}
-    </div>`).join('');
+  list.innerHTML=gms.map(function(m){
+    const badge=m.role==='admin'?'<div class="group-role-badge">은행장</div>':'';
+    return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')">'
+      +'<div class="group-icon">'+(typeIcon[m.groups.type]||'👥')+'</div>'
+      +'<div class="group-info">'
+      +'<div class="group-name">'+m.groups.name+'</div>'
+      +'<div class="group-meta">'+(typeLabel[m.groups.type]||'그룹')+'</div>'
+      +'</div>'+badge+'</div>';
+  }).join('');
 }
 
 async function selectGroup(groupId,role){
@@ -1145,12 +1145,13 @@ async function loadAdminScreen(){
     const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
     const container=document.getElementById('adminContent');
     if(!accs||!accs.length){container.innerHTML='<div class="empty"><div class="ei">📒</div>통장을 개설해주세요</div>';return}
-    container.innerHTML=accs.map(a=>`
-      <div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
-        <div class="acc-name">📒 ${a.name}</div>
-        <div class="acc-balance">${fmt(a.balance)}</div>
-        <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
-      </div>`).join('');
+    container.innerHTML=accs.map(function(a){
+      return'<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+        +'<div class="acc-name">📒 '+a.name+'</div>'
+        +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
+        +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
+        +'</div>';
+    }).join('');
   } else {
     // 가족: 구성원 목록
     document.getElementById('adminScreenTitleText').textContent='구성원 관리';
@@ -1162,27 +1163,27 @@ async function loadAdminScreen(){
       const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
       return{...m,total,accs:accs||[]};
     }));
-    container.innerHTML=cards.map(m=>`
-      <div class="member-card" onclick="openMemberDetail('${m.user_id}')">
-        ${avEl(m.users.photo,'👦',42)}
-        <div class="mc-info">
-          <div class="mc-name">${m.users.nickname} <span style="font-size:11px;color:var(--text-sub);font-weight:400">${m.join_date?'개설 '+m.join_date:''}</span></div>
-          <div class="mc-balance">${fmt(m.total)}</div>
-          <div class="mc-meta">통장 ${m.accs.length}개</div>
-        </div>
-        <div onclick="event.stopPropagation()">
-          <button class="delegate-btn" onclick="confirmDelegate('${m.user_id}','${m.users.nickname}')">권한위임</button>
-        </div>
-      </div>`).join('');
-    // 초대코드
-    const inviteHtml=`<div class="card" style="margin-top:14px">
-      <div style="font-size:13px;font-weight:700;margin-bottom:8px">초대코드</div>
-      <div class="invite-box">
-        <div class="invite-code" id="groupInviteCode">${currentGroup.invite_code||'-'}</div>
-        <div class="invite-sub">이 코드를 공유해서 구성원을 초대하세요</div>
-      </div>
-      <button onclick="regenInviteCode()" style="width:100%;padding:9px;background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-top:7px">코드 재생성</button>
-    </div>`;
+   container.innerHTML=cards.map(function(m){
+      const joinDate=m.join_date?'개설 '+m.join_date:'';
+      return'<div class="member-card" onclick="openMemberDetail(\''+m.user_id+'\')">'
+        +avEl(m.users.photo,'👦',42)
+        +'<div class="mc-info">'
+        +'<div class="mc-name">'+m.users.nickname+' <span style="font-size:11px;color:#6B7280;font-weight:400">'+joinDate+'</span></div>'
+        +'<div class="mc-balance">'+fmt(m.total)+'</div>'
+        +'<div class="mc-meta">통장 '+m.accs.length+'개</div>'
+        +'</div>'
+        +'<div onclick="event.stopPropagation()">'
+        +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+        +'</div></div>';
+    }).join('');
+    const inviteHtml='<div class="card" style="margin-top:14px">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:8px">초대코드</div>'
+      +'<div class="invite-box">'
+      +'<div class="invite-code" id="groupInviteCode">'+(currentGroup.invite_code||'-')+'</div>'
+      +'<div class="invite-sub">이 코드를 공유해서 구성원을 초대하세요</div>'
+      +'</div>'
+      +'<button onclick="regenInviteCode()" style="width:100%;padding:9px;background:#E8F0FE;color:#1A73E8;border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-top:7px">코드 재생성</button>'
+      +'</div>';
     container.innerHTML+=inviteHtml;
   }
 }
@@ -1314,20 +1315,19 @@ document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block'
 }
 
 async function loadGyeAccMembers(accId){
-  // gye_account_members 테이블이 없을 수 있으므로 group_members에서 admin 제외한 전체로 대체
   const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
   const sortType=window.gyeSortType||'join';
   const list=document.getElementById('gyeAccMemberList');
-  if(!gms||!gms.length){list.innerHTML='<div style="font-size:13px;color:var(--text-sub);padding:8px 0">구성원이 없어요</div>';renderPaymentTable([]);return}
+  if(!gms||!gms.length){list.innerHTML='<div style="font-size:13px;color:#6B7280;padding:8px 0">구성원이 없어요</div>';renderPaymentTable([]);return}
   if(sortType==='name') gms.sort((a,b)=>a.users.nickname.localeCompare(b.users.nickname));
-  list.innerHTML=gms.map(m=>`
-    <div class="acc-member-row">
-      <div class="acc-member-name">${avEl(m.users.photo,'👦',28)} ${m.users.nickname}</div>
-      <div style="display:flex;align-items:center;gap:8px">
-        <div class="acc-member-bal">-</div>
-        <button class="delegate-btn" onclick="confirmDelegate('${m.user_id}','${m.users.nickname}')">권한위임</button>
-      </div>
-    </div>`).join('');
+  list.innerHTML=gms.map(function(m){
+    return'<div class="acc-member-row">'
+      +'<div class="acc-member-name">'+avEl(m.users.photo,'👦',28)+' '+m.users.nickname+'</div>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<div class="acc-member-bal">-</div>'
+      +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+      +'</div></div>';
+  }).join('');
   renderPaymentTable(gms);
 }
 
@@ -1360,16 +1360,19 @@ async function loadStarInfo(accId){
 async function loadAutoTransfers(accId){
   const{data:ats}=await db.from('auto_transfers').select('*').eq('account_id',accId);
   const list=document.getElementById('autoList');
-  if(!ats||!ats.length){list.innerHTML='<div style="font-size:12px;color:var(--text-sub);padding:6px 0">자동이체 없음</div>';return}
-  list.innerHTML=ats.map(at=>`
-    <div class="auto-card">
-      <div class="auto-head"><div class="auto-amt">${fmt(at.amount)}</div><span class="auto-badge ${at.active?'':'off'}">${at.active?'활성':'중지'}</span></div>
-      <div class="auto-meta">매월 ${at.day_of_month}일 · ${at.note||''} · ${at.mode==='count'?`${at.done_count}/${at.total_count}회`:at.mode==='amount'?`목표 ${fmt(at.target_amount)}`:'무기한'}</div>
-      <div style="display:flex;gap:6px;margin-top:7px">
-        <button onclick="execAutoTransfer('${at.id}')" style="flex:1;padding:6px;background:var(--blue-light);color:var(--blue);border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;font-weight:700">▶ 실행</button>
-        <button onclick="confirmDeleteAt('${at.id}')" style="padding:6px 11px;background:#FEE2E2;color:var(--red);border:none;border-radius:8px;font-family:'Noto Sans KR',sans-serif;font-size:12px;cursor:pointer;font-weight:700">삭제</button>
-      </div>
-    </div>`).join('');
+  if(!ats||!ats.length){list.innerHTML='<div style="font-size:12px;color:#6B7280;padding:6px 0">자동이체 없음</div>';return}
+  list.innerHTML=ats.map(function(at){
+    const modeStr=at.mode==='count'?at.done_count+'/'+at.total_count+'회':at.mode==='amount'?'목표 '+fmt(at.target_amount):'무기한';
+    const badgeCls='auto-badge'+(at.active?'':' off');
+    const badgeTxt=at.active?'활성':'중지';
+    return'<div class="auto-card">'
+      +'<div class="auto-head"><div class="auto-amt">'+fmt(at.amount)+'</div><span class="'+badgeCls+'">'+badgeTxt+'</span></div>'
+      +'<div class="auto-meta">매월 '+at.day_of_month+'일 · '+(at.note||'')+' · '+modeStr+'</div>'
+      +'<div style="display:flex;gap:6px;margin-top:7px">'
+      +'<button onclick="execAutoTransfer(\''+at.id+'\')" style="flex:1;padding:6px;background:#E8F0FE;color:#1A73E8;border:none;border-radius:8px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;cursor:pointer;font-weight:700">▶ 실행</button>'
+      +'<button onclick="confirmDeleteAt(\''+at.id+'\')" style="padding:6px 11px;background:#FEE2E2;color:#DC2626;border:none;border-radius:8px;font-family:\'Noto Sans KR\',sans-serif;font-size:12px;cursor:pointer;font-weight:700">삭제</button>'
+      +'</div></div>';
+  }).join('');
 }
 
 // ── My Account (구성원) ──
@@ -1787,20 +1790,23 @@ async function loadNotices(){
   const isAdmin=currentGM.role==='admin';
   const container=document.getElementById('noticeList');
   if(!notices||!notices.length){container.innerHTML='<div class="empty"><div class="ei">🔔</div>공지가 없어요</div>';return}
-  container.innerHTML=notices.map(n=>{
+ container.innerHTML=notices.map(function(n){
     const isRead=readIds.has(n.id);const isLiked=likedIds.has(n.id);
     const lc=likeCnt[n.id]||0;const cc=cmtCnt[n.id]||0;
-    return`<div class="notice-card" style="${!isRead?'border-left:3px solid var(--gold)':''}">
-      <div class="n-title">${!isRead?'🆕 ':''}${n.title}</div>
-      <div class="n-content">${(n.content||'').replace(/\n/g,'<br>')}</div>
-      <div class="n-meta"><span>${fmtDate(n.created_at)}</span><span>❤️${lc} 💬${cc}</span></div>
-      <div class="n-actions">
-        <button class="like-btn ${isLiked?'liked':''}" onclick="toggleLike('${n.id}',${isLiked})">❤️ ${lc}</button>
-        <button class="cmt-btn" onclick="toggleCmts('${n.id}')">💬 ${cc}</button>
-        ${isAdmin?`<button class="n-edt" onclick="openEditNotice('${n.id}','${n.title.replace(/'/g,"\\'")}','${(n.content||'').replace(/'/g,"\\'")}')">✏️</button><button class="n-del" onclick="confirmDeleteNotice('${n.id}')">🗑️</button>`:''}
-      </div>
-      <div class="cmts-wrap" id="cmts-${n.id}" style="display:none"></div>
-    </div>`;
+    const border=!isRead?'border-left:3px solid #D97706':'';
+    const newBadge=!isRead?'🆕 ':'';
+    const adminBtns=isAdmin?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+( n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
+    return'<div class="notice-card" style="'+border+'">'
+      +'<div class="n-title">'+newBadge+n.title+'</div>'
+      +'<div class="n-content">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
+      +'<div class="n-meta"><span>'+fmtDate(n.created_at)+'</span><span>❤️'+lc+' 💬'+cc+'</span></div>'
+      +'<div class="n-actions">'
+      +'<button class="like-btn'+(isLiked?' liked':'')+'" onclick="toggleLike(\''+n.id+'\','+isLiked+')">❤️ '+lc+'</button>'
+      +'<button class="cmt-btn" onclick="toggleCmts(\''+n.id+'\')">💬 '+cc+'</button>'
+      +adminBtns
+      +'</div>'
+      +'<div class="cmts-wrap" id="cmts-'+n.id+'" style="display:none"></div>'
+      +'</div>';
   }).join('');
   const unread=notices.filter(n=>!readIds.has(n.id));
   if(unread.length){await db.from('notice_reads').upsert(unread.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});await checkNoticeBadge()}
