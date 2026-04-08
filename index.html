@@ -1127,7 +1127,7 @@ async function loadAdminScreen(){
     const container=document.getElementById('adminContent');
     if(!accs||!accs.length){container.innerHTML='<div class="empty"><div class="ei">📒</div>통장을 개설해주세요</div>';return}
     container.innerHTML=accs.map(a=>`
-      <div class="account-card" onclick="openAccDetail('${a.id}')">
+      <div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
         <div class="acc-name">📒 ${a.name}</div>
         <div class="acc-balance">${fmt(a.balance)}</div>
         <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
@@ -1715,7 +1715,7 @@ async function regenInviteCode(){
     const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
     if(!accs||!accs.length) continue;
     accs.forEach(a=>{
-      html+=`<div class="account-card" onclick="openAccDetail('${a.id}')">
+      html+=`<div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
         <div class="acc-name">${m.users.nickname} · ${a.name}</div>
         <div class="acc-balance">${fmt(a.balance)}</div>
         <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
@@ -1725,7 +1725,7 @@ async function regenInviteCode(){
     if(currentGroup.type==='gye'){
     const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
     (gyeAccs||[]).forEach(a=>{
-      html+=`<div class="account-card" onclick="openAccDetail('${a.id}')">
+      html+=`<div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
         <div class="acc-name">📒 ${a.name}</div>
         <div class="acc-balance">${fmt(a.balance)}</div>
         <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
