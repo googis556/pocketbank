@@ -1146,7 +1146,7 @@ async function loadAdminScreen(){
     const container=document.getElementById('adminContent');
     if(!accs||!accs.length){container.innerHTML='<div class="empty"><div class="ei">📒</div>통장을 개설해주세요</div>';return}
     container.innerHTML=accs.map(function(a){
-      return'<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+      return'<div class="account-card" onclick="openAccDetail(\''+a.id+'\')">'
         +'<div class="acc-name">📒 '+a.name+'</div>'
         +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
         +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
