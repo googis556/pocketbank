@@ -530,6 +530,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       기타
       <button class="add-btn" id="etcAddBtn" onclick="openAddLink()" style="display:none">+</button>
     </div>
+    <div id="globalLinkList"></div>
     <div id="linkList"></div>
   </div>
 
@@ -874,7 +875,19 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     </div>
   </div>
 </div>
-
+<div class="modal-overlay" id="globalLinkModal">
+  <div class="modal">
+    <h3>공지사항 추가</h3>
+    <div class="ig"><label>아이콘</label><input type="text" id="glIcon" maxlength="2" placeholder="📢"></div>
+    <div class="ig"><label>제목</label><input type="text" id="glTitle"></div>
+    <div class="ig"><label>URL (선택)</label><input type="url" id="glUrl" placeholder="https://..."></div>
+    <div class="ig"><label>내용 (선택)</label><textarea id="glContent"></textarea></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('globalLinkModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitGlobalLink()">저장</button>
+    </div>
+  </div>
+</div>
 <script>
 const SB_URL='https://ntaaxhayfraqcpnbreme.supabase.co';
 const SB_KEY='sb_publishable_3B1-IKzYNazYswN91dtHsg_16Mb6lKY';
@@ -1891,6 +1904,27 @@ async function confirmLeaveGroup(groupId){
   showToast('탈퇴됐어요!');
   await loadGroupSelect();
 }
+  function openAddGlobalLink(){
+  document.getElementById('glIcon').value='📢';
+  document.getElementById('glTitle').value='';
+  document.getElementById('glUrl').value='';
+  document.getElementById('glContent').value='';
+  showModal('globalLinkModal');
+}
+async function submitGlobalLink(){
+  const icon=document.getElementById('glIcon').value||'📢';
+  const title=document.getElementById('glTitle').value.trim();
+  const url=document.getElementById('glUrl').value.trim();
+  const content=document.getElementById('glContent').value.trim();
+  if(!title){showToast('제목을 입력해주세요');return}
+  await db.from('global_links').insert({icon,title,url:url||null,content:content||null});
+  closeModal('globalLinkModal');showToast('저장됐어요!');await loadLinks();
+}
+async function deleteGlobalLink(id){
+  if(!confirm('삭제할까요?'))return;
+  await db.from('global_links').delete().eq('id',id);
+  showToast('삭제됐어요');await loadLinks();
+}
   function openMyInfo(){
   document.getElementById('myInfoNick').value=currentUser.nickname;
   document.getElementById('myInfoPin').value='';
@@ -2065,6 +2099,36 @@ async function checkNoticeBadge(){
 
 // ── Links ──
 async function loadLinks(){
+  // 글로벌 링크 로드
+  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:true});
+  const isManager=currentUser.nickname==='manager_1';
+  const gc=document.getElementById('globalLinkList');
+  if(glinks&&glinks.length){
+    gc.innerHTML='<div class="sec-title" style="margin-bottom:8px">공지사항</div>'
+      +glinks.map(function(l){
+        const delBtn=isManager?'<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>':'';
+        if(l.url){
+          return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
+        } else {
+          return'<div class="notice-card"><div class="n-title">'+(l.icon||'📢')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+        }
+      }).join('');
+  } else {
+    gc.innerHTML='';
+  }
+  // 매니저면 추가 버튼 표시
+  if(isManager){
+    gc.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="sec-title" style="margin-bottom:0">공지사항</div><button class="add-btn" onclick="openAddGlobalLink()">+</button></div>'+(gc.innerHTML.includes('link-card')||gc.innerHTML.includes('notice-card')?gc.innerHTML.replace('<div style="display:flex;justify-content:space-between','<div style="display:flex;justify-content:space-between'):'');
+    gc.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="sec-title" style="margin-bottom:0">공지사항</div><button class="add-btn" onclick="openAddGlobalLink()">+</button></div>'
+      +(glinks&&glinks.length?glinks.map(function(l){
+        const delBtn='<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>';
+        if(l.url){
+          return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
+        } else {
+          return'<div class="notice-card"><div class="n-title">'+(l.icon||'📢')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+        }
+      }).join(''):'');
+  }
   const{data:links}=await db.from('links').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:true});
   const isAdmin=currentGM.role==='admin';
   const container=document.getElementById('linkList');
