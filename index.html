@@ -1726,7 +1726,7 @@ async function regenInviteCode(){
 }
 
 // ── All Transactions ──
-  async function loadAdminAccList(){
+ async function loadAdminAccList(){
   const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
   const list=document.getElementById('adminAccList');
   if(!members||!members.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>구성원이 없어요</div>';return}
@@ -1734,22 +1734,22 @@ async function regenInviteCode(){
   for(const m of members){
     const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
     if(!accs||!accs.length) continue;
-    accs.forEach(a=>{
-      html+=`<div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
-        <div class="acc-name">${m.users.nickname} · ${a.name}</div>
-        <div class="acc-balance">${fmt(a.balance)}</div>
-        <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
-      </div>`;
+    accs.forEach(function(a){
+      html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+        +'<div class="acc-name">'+m.users.nickname+' · '+a.name+'</div>'
+        +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
+        +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
+        +'</div>';
     });
   }
-    if(currentGroup.type==='gye'){
+  if(currentGroup.type==='gye'){
     const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
-    (gyeAccs||[]).forEach(a=>{
-      html+=`<div class="account-card" onclick="currentTab='account';openAccDetail('${a.id}')">
-        <div class="acc-name">📒 ${a.name}</div>
-        <div class="acc-balance">${fmt(a.balance)}</div>
-        <div class="acc-meta">연 ${a.interest_rate}% ${methodLabel(a.interest_method)}</div>
-      </div>`;
+    (gyeAccs||[]).forEach(function(a){
+      html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+        +'<div class="acc-name">📒 '+a.name+'</div>'
+        +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
+        +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
+        +'</div>';
     });
   }
   list.innerHTML=html||'<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';
