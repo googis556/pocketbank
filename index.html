@@ -1075,13 +1075,8 @@ async function loadHome(){
  } else {
     document.getElementById('memberName').textContent=currentUser.nickname;
     let accs=[];
-    if(currentGroup.type==='gye'){
-      const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
-      accs=gyeAccs||[];
-    } else {
-      const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
-      accs=myAccs||[];
-    }
+    const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+    accs=myAccs||[];
     const total=accs.reduce((s,a)=>s+a.balance,0);
     document.getElementById('memberTotal').textContent=fmt(total);
     renderMemberAccCards(accs,document.getElementById('memberAccList'));
@@ -1419,10 +1414,17 @@ async function loadAutoTransfers(accId){
 
 // ── My Account (구성원) ──
 async function loadMyAccounts(){
-  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+  let accs=[];
+  if(currentGroup.type==='gye'){
+    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
+    accs=gyeAccs||[];
+  } else {
+    const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+    accs=myAccs||[];
+  }
   const list=document.getElementById('myAccList');
-  if(!accs||!accs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
-  list.innerHTML=accs.map(a=>accCardHtml(a,false)).join('');
+  if(!accs.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
+  list.innerHTML=accs.map(function(a){return accCardHtml(a,false)}).join('');
 }
 
 async function openMyAccDetail(accId){
