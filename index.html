@@ -1922,7 +1922,8 @@ async function loadNotices(){
     const lc=likeCnt[n.id]||0;const cc=cmtCnt[n.id]||0;
     const border=!isRead?'border-left:3px solid #D97706':'';
     const newBadge=!isRead?'🆕 ':'';
-    const adminBtns=isAdmin?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+( n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
+    const canEdit=isAdmin||n.author_id===currentUser.id;
+const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+(n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
     return'<div class="notice-card" style="'+border+'">'
       +'<div class="n-title">'+newBadge+n.title+'</div>'
       +'<div class="n-content">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
