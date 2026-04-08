@@ -1134,7 +1134,7 @@ function setAv(elId,emojiId,photo,def){
 }
 function renderMyAvatar(){const isAdmin=currentGM?.role==='admin';setAv(isAdmin?'adminAvatar':'memberAvatar',isAdmin?'adminAvatarEmoji':'memberAvatarEmoji',currentUser.photo,isAdmin?'👑':'😊')}
 function renderDetailAv(){setAv('detailAvatar','detailAvatarEmoji',detailMember?.photo,'👦')}
-function avEl(photo,emoji,size){return photo?`<div class="avatar" style="width:${size}px;height:${size}px"><img src="${photo}"></div>`:`<div class="avatar" style="width:${size}px;height:${size}px;font-size:${size*0.42}px">${emoji}</div>`}
+function avEl(photo,emoji,size){return photo?'<div class="avatar" style="width:'+size+'px;height:'+size+'px"><img src="'+photo+'"></div>':'<div class="avatar" style="width:'+size+'px;height:'+size+'px;font-size:'+(size*0.42)+'px">'+emoji+'</div>'}
 
 // ── Admin: load members or accounts ──
 async function loadAdminScreen(){
