@@ -1059,7 +1059,12 @@ async function loadHome(){
       total+=gyeTotal;
     }
     document.getElementById('adminTotal').textContent=fmt(total);
-    document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
+    if(currentGroup.type==='gye'){
+      document.getElementById('adminSummary').innerHTML='<button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">👥 구성원 보기</button><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
+      window._gyeMembers=members;
+    } else {
+      document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
+    }
     // 최근 거래
     const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
     const accIds=(accs||[]).map(a=>a.id);
@@ -1985,7 +1990,17 @@ function showDayDetail(day){
   });
   document.getElementById('calDayDetail').innerHTML=html;
 }
-  
+ function toggleMemberList(){
+  const wrap=document.getElementById('memberListWrap');
+  if(wrap.style.display==='none'){
+    wrap.style.display='block';
+    wrap.innerHTML=(window._gyeMembers||[]).map(function(m){
+      return'<div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">'+avEl(m.users.photo,'👦',32)+'<span style="color:white;font-size:13px;font-weight:700">'+m.users.nickname+'</span></div>';
+    }).join('');
+  } else {
+    wrap.style.display='none';
+  }
+} 
 // ── Refresh FAB ──
 function refreshCurrentTab(){switchTab(currentTab)}
 
