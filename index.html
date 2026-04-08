@@ -979,12 +979,15 @@ async function loadGroupSelect(){
   if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
   list.innerHTML=gms.map(function(m){
     const badge=m.role==='admin'?'<div class="group-role-badge">은행장</div>':'';
+    const actionBtn=m.role==='admin'
+      ?'<button onclick="event.stopPropagation();confirmDeleteGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">삭제</button>'
+      :'<button onclick="event.stopPropagation();confirmLeaveGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">탈퇴</button>';
     return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')">'
       +'<div class="group-icon">'+(typeIcon[m.groups.type]||'👥')+'</div>'
       +'<div class="group-info">'
       +'<div class="group-name">'+m.groups.name+'</div>'
       +'<div class="group-meta">'+(typeLabel[m.groups.type]||'그룹')+'</div>'
-      +'</div>'+badge+'</div>';
+      +'</div>'+badge+actionBtn+'</div>';
   }).join('');
 }
 
@@ -1781,7 +1784,38 @@ async function delegateRole(userId){
   document.getElementById('etcAddBtn').style.display='none';
   switchTab('home');await loadHome();
 }
+async function confirmDeleteGroup(groupId){
+  const{data:members}=await db.from('group_members').select('*').eq('group_id',groupId).neq('user_id',currentUser.id);
+  if(members&&members.length>0){
+    alert('위임 후 삭제가능합니다.');
+    return;
+  }
+  if(!confirm('정말로 삭제하시겠습니까?'))return;
+  deleteGroup(groupId);
+}
 
+async function deleteGroup(groupId){
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',groupId);
+  for(const acc of accs||[]){
+    await db.from('transactions').delete().eq('account_id',acc.id);
+    await db.from('star_history').delete().eq('account_id',acc.id);
+    await db.from('auto_transfers').delete().eq('account_id',acc.id);
+  }
+  await db.from('accounts').delete().eq('group_id',groupId);
+  await db.from('notices').delete().eq('group_id',groupId);
+  await db.from('links').delete().eq('group_id',groupId);
+  await db.from('group_members').delete().eq('group_id',groupId);
+  await db.from('groups').delete().eq('id',groupId);
+  showToast('그룹이 삭제됐어요!');
+  await loadGroupSelect();
+}
+
+async function confirmLeaveGroup(groupId){
+  if(!confirm('탈퇴할 경우 활동기록은 지워지지 않습니다.\n그룹이 삭제되어야 활동기록도 지워집니다.\n정말로 탈퇴하시겠습니까?'))return;
+  await db.from('group_members').delete().eq('group_id',groupId).eq('user_id',currentUser.id);
+  showToast('탈퇴됐어요!');
+  await loadGroupSelect();
+}
 // ── Invite Code ──
 async function regenInviteCode(){
   const code=genCode();
