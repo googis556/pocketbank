@@ -822,28 +822,16 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   </div>
 </div>
 
+
 <div class="modal-overlay" id="starsModal">
   <div class="modal">
     <h3 id="starsTitle">별 지급</h3>
-    <div class="ig"><label>별 종류</label><select id="starTypeSel"></select></div>
+    <div class="ig" id="starTypeWrap"><label>별 종류</label><select id="starTypeSel"></select></div>
     <div class="ig"><label>개수</label><input type="number" id="starCount" min="1"></div>
     <div class="ig"><label>메모</label><input type="text" id="starNote"></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('starsModal')">취소</button>
       <button class="mbtn mbtn-gold" onclick="submitStars()">확인</button>
-    </div>
-  </div>
-</div>
-
-<div class="modal-overlay" id="convertStarsModal">
-  <div class="modal">
-    <h3>별 → 돈 전환</h3>
-    <div class="ig"><label>전환할 별 개수</label><input type="number" id="cvStarCount" min="1" oninput="calcConvert()"></div>
-    <div class="ig"><label>입금할 통장</label><select id="cvTargetAcc"></select></div>
-    <div class="info-box" id="cvPreview"></div>
-    <div class="modal-btns">
-      <button class="mbtn mbtn-cancel" onclick="closeModal('convertStarsModal')">취소</button>
-      <button class="mbtn mbtn-green" onclick="submitConvertStars()">전환</button>
     </div>
   </div>
 </div>
@@ -1610,18 +1598,38 @@ async function loadStarTypesSel(){
   if(!types||!types.length){sel.innerHTML='<option>별 종류 없음</option>';return}
   sel.innerHTML=types.map(function(t){return'<option value="'+t.id+'">'+(t.icon||'⭐')+' '+t.name+'</option>'}).join('');
 }
-function openGiveStars(){starsAction='give';document.getElementById('starsTitle').textContent='⭐ 별 지급';document.getElementById('starCount').value='';document.getElementById('starNote').value='';loadStarTypesSel();showModal('starsModal')}
-function openTakeStars(){starsAction='take';document.getElementById('starsTitle').textContent='❌ 별 차감';document.getElementById('starCount').value='';document.getElementById('starNote').value='';loadStarTypesSel();showModal('starsModal')}
+function openGiveStars(){
+  starsAction='give';
+  document.getElementById('starsTitle').textContent='⭐ 별 지급';
+  document.getElementById('starCount').value='';
+  document.getElementById('starNote').value='';
+  document.getElementById('starTypeWrap').style.display='block';
+  loadStarTypesSel();
+  showModal('starsModal');
+}
+function openTakeStars(){
+  starsAction='take';
+  document.getElementById('starsTitle').textContent='💀 별 차감';
+  document.getElementById('starCount').value='';
+  document.getElementById('starNote').value='';
+  document.getElementById('starTypeWrap').style.display='none';
+  showModal('starsModal');
+}
 async function submitStars(){
-  const typeId=document.getElementById('starTypeSel').value;
-  const typeName=document.getElementById('starTypeSel').selectedOptions[0]?.text||'별';
   const count=parseInt(document.getElementById('starCount').value)||0;
   const note=document.getElementById('starNote').value;
   if(!count||count<=0){showToast('개수를 입력해주세요');return}
   const amount=starsAction==='give'?count:-count;
   const newBal=detailAccount.balance+amount;
-  await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:typeId,amount,note});
-  await db.from('transactions').insert({account_id:detailAccount.id,type:starsAction==='give'?'deposit':'withdraw',amount:count,balance_after:newBal,note:typeName+' '+count+'개'+(note?' · '+note:'')});
+  if(starsAction==='give'){
+    const typeId=document.getElementById('starTypeSel').value;
+    const typeName=document.getElementById('starTypeSel').selectedOptions[0]?.text||'별';
+    await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:typeId,amount,note});
+    await db.from('transactions').insert({account_id:detailAccount.id,type:'deposit',amount:count,balance_after:newBal,note:typeName+' '+count+'개'+(note?' · '+note:'')});
+  } else {
+    await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:null,amount:-count,note:note||'차감'});
+    await db.from('transactions').insert({account_id:detailAccount.id,type:'withdraw',amount:count,balance_after:newBal,note:'💀 별 차감 '+count+'개'+(note?' · '+note:'')});
+  }
   await db.from('accounts').update({balance:newBal}).eq('id',detailAccount.id);
   closeModal('starsModal');showToast(starsAction==='give'?'별 '+count+'개 지급됐어요!':'별 '+count+'개 차감됐어요!');
   await openAccDetail(detailAccount.id);
@@ -1647,6 +1655,8 @@ async function submitConvertStars(){
   const count=parseInt(document.getElementById('cvStarCount').value)||0;
   const targetAccId=document.getElementById('cvTargetAcc').value;
   if(!count){showToast('개수를 입력해주세요');return}
+if(detailAccount.balance<=0){showToast('전환이 불가능합니다.');return}
+if(count>detailAccount.balance){showToast('전환이 불가능합니다.');return}
   if(!targetAccId){showToast('통장을 선택해주세요');return}
   const money=count*1000;
   // 별별통장에서 별 차감
