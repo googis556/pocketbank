@@ -919,6 +919,12 @@ window.onload=()=>{
   if(saved){document.getElementById('loginNickname').value=saved;document.getElementById('saveNick').checked=true}
   // Swipe back for history screen
   setupSwipeBack();
+  const urlParams=new URLSearchParams(window.location.search);
+  const inviteCode=urlParams.get('code');
+  if(inviteCode){
+    document.getElementById('joinCode').value=inviteCode.toUpperCase();
+    showModal('joinGroupModal');
+  }
 };
 
 function showReg(){document.getElementById('loginCard').style.display='none';document.getElementById('regCard').style.display='block'}
@@ -1152,8 +1158,26 @@ async function loadAdminScreen(){
     document.getElementById('adminScreenTitleText').textContent='통장 관리';
     const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
     const container=document.getElementById('adminContent');
-    if(!accs||!accs.length){container.innerHTML='<div class="empty"><div class="ei">📒</div>통장을 개설해주세요</div>';return}
-    container.innerHTML=accs.map(function(a){
+    // 초대코드 없으면 생성
+if(!currentGroup.invite_code){
+      const code=genCode();
+      await db.from('groups').update({invite_code:code}).eq('id',currentGroup.id);
+      currentGroup.invite_code=code;
+    }
+    const inviteUrl='https://googis556.github.io/pocketbank?code='+currentGroup.invite_code;
+    const gyeInviteHtml='<div class="card" style="margin-bottom:12px">'
+      +'<div style="font-size:13px;font-weight:700;margin-bottom:8px">초대코드</div>'
+      +'<div class="invite-box">'
+      +'<div class="invite-code" id="groupInviteCode">'+currentGroup.invite_code+'</div>'
+      +'<div class="invite-sub">이 코드를 공유해서 구성원을 초대하세요</div>'
+      +'</div>'
+      +'<div style="display:flex;gap:8px;margin-top:8px">'
+      +'<button onclick="regenInviteCode()" style="flex:1;padding:9px;background:var(--blue-light);color:var(--blue);border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700">코드 재생성</button>'
+      +'<button onclick="copyInviteLink(\''+inviteUrl+'\')" style="flex:1;padding:9px;background:var(--green);color:white;border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700">🔗 링크복사</button>'
+      +'</div>'
+      +'</div>';
+    if(!accs||!accs.length){container.innerHTML=gyeInviteHtml+'<div class="empty"><div class="ei">📒</div>통장을 개설해주세요</div>';return}
+    container.innerHTML=gyeInviteHtml+accs.map(function(a){
       return'<div class="account-card" onclick="openAccDetail(\''+a.id+'\')">'
         +'<div class="acc-name">📒 '+a.name+'</div>'
         +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
@@ -1184,13 +1208,17 @@ async function loadAdminScreen(){
         +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
         +'</div></div>';
     }).join('');
+    const inviteUrl='https://googis556.github.io/pocketbank?code='+currentGroup.invite_code;
     const inviteHtml='<div class="card" style="margin-top:14px">'
       +'<div style="font-size:13px;font-weight:700;margin-bottom:8px">초대코드</div>'
       +'<div class="invite-box">'
       +'<div class="invite-code" id="groupInviteCode">'+(currentGroup.invite_code||'-')+'</div>'
       +'<div class="invite-sub">이 코드를 공유해서 구성원을 초대하세요</div>'
       +'</div>'
-      +'<button onclick="regenInviteCode()" style="width:100%;padding:9px;background:#E8F0FE;color:#1A73E8;border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-top:7px">코드 재생성</button>'
+      +'<div style="display:flex;gap:8px;margin-top:7px">'
+      +'<button onclick="regenInviteCode()" style="flex:1;padding:9px;background:#E8F0FE;color:#1A73E8;border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700">코드 재생성</button>'
+      +'<button onclick="copyInviteLink(\''+inviteUrl+'\')" style="flex:1;padding:9px;background:#16A34A;color:white;border:none;border-radius:10px;font-family:\'Noto Sans KR\',sans-serif;font-size:13px;cursor:pointer;font-weight:700">🔗 링크복사</button>'
+      +'</div>'
       +'</div>';
     container.innerHTML+=inviteHtml;
   }
@@ -1844,6 +1872,13 @@ async function confirmLeaveGroup(groupId){
   await db.from('group_members').delete().eq('group_id',groupId).eq('user_id',currentUser.id);
   showToast('탈퇴됐어요!');
   await loadGroupSelect();
+}
+  function copyInviteLink(url){
+  navigator.clipboard.writeText(url).then(function(){
+    showToast('링크가 복사됐어요!');
+  }).catch(function(){
+    showToast('복사 실패. 코드를 직접 공유해주세요: '+currentGroup.invite_code);
+  });
 }
 // ── Invite Code ──
 async function regenInviteCode(){
