@@ -1441,16 +1441,19 @@ async function submitTx(){
   const amount=parseComma(document.getElementById('txAmount').value);
   const note=document.getElementById('txNote').value;
   const dateVal=document.getElementById('txDate').value;
+  const memberId=document.getElementById('txMember').value;
+  const memberName=document.getElementById('txMember').selectedOptions[0]?.text||'';
   if(!amount||amount<=0){showToast('금액을 입력해주세요');return}
   const{data:acc}=await db.from('accounts').select('balance').eq('id',txAccountId).single();
   const prev=acc.balance;
   const newBal=txAction==='deposit'?prev+amount:prev-amount;
   if(newBal<0){showToast('잔액이 부족해요');return}
-  await db.from('transactions').insert({account_id:txAccountId,type:txAction,amount,balance_after:newBal,note,created_at:dateVal?new Date(dateVal).toISOString():undefined});
+  const finalNote=memberId?memberName+(note?(' · '+note):''):note;
+  await db.from('transactions').insert({account_id:txAccountId,type:txAction,amount,balance_after:newBal,note:finalNote,member_id:memberId||null,created_at:dateVal?new Date(dateVal).toISOString():undefined});
   await db.from('accounts').update({balance:newBal}).eq('id',txAccountId);
   if(detailAccount?.type==='goal'&&detailAccount?.goal_amount&&newBal>=detailAccount.goal_amount&&!detailAccount.goal_achieved){
     await db.from('accounts').update({goal_achieved:true}).eq('id',txAccountId);
-    await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title:'🎉 목표 달성!',content:`${detailAccount.name} 통장의 목표 ${fmt(detailAccount.goal_amount)}을 달성했어요!`});
+    await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title:'🎉 목표 달성!',content:detailAccount.name+' 통장의 목표 '+fmt(detailAccount.goal_amount)+'을 달성했어요!'});
     showToast('🎉 목표 달성!');
   }
   closeModal('txModal');showToast('완료됐어요!');
