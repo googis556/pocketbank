@@ -1008,7 +1008,6 @@ async function doLogin(){
       user=u;
     }
   }
-  }
   clearInterval(iv);
   if(!user){fill.style.width='0%';setTimeout(()=>{prog.style.display='none'},300);showToast('별칭 또는 PIN이 틀렸어요');return}
   fill.style.width='100%';setTimeout(()=>{prog.style.display='none';fill.style.width='0%'},400);
