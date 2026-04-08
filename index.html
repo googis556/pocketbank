@@ -1878,7 +1878,6 @@ async function submitLink(){
 function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;db.from('links').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadLinks()})}
 
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[];
-
 async function openCalendar(){
   calAccId=detailAccount.id;
   calYear=new Date().getFullYear();calMonth=new Date().getMonth();
@@ -1887,44 +1886,54 @@ async function openCalendar(){
   renderCalendar();
   showModal('calModal');
 }
-
 function changeMonth(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++}else if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
-
 function renderCalendar(){
   const today=new Date();
-  document.getElementById('calTitle').textContent=`${calYear}년 ${calMonth+1}월`;
+  document.getElementById('calTitle').textContent=calYear+'년 '+(calMonth+1)+'월';
   const days=['일','월','화','수','목','금','토'];
   const firstDay=new Date(calYear,calMonth,1).getDay();
   const lastDate=new Date(calYear,calMonth+1,0).getDate();
-  let html=days.map(d=>`<div style="font-size:11px;font-weight:700;color:var(--text-sub);padding:4px">${d}</div>`).join('');
-  for(let i=0;i<firstDay;i++) html+=`<div></div>`;
+  let html=days.map(function(d){return'<div style="font-size:11px;font-weight:700;color:#6B7280;padding:4px">'+d+'</div>'}).join('');
+  for(let i=0;i<firstDay;i++) html+='<div></div>';
   for(let d=1;d<=lastDate;d++){
-    const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const dayTxs=calTxs.filter(tx=>{const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===d&&['deposit','interest'].includes(tx.type)});
+    const kstOffset=9*60*60*1000;
+    const dayTxs=calTxs.filter(function(tx){
+      const kst=new Date(new Date(tx.created_at).getTime()+kstOffset);
+      return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===d&&['deposit','interest'].includes(tx.type);
+    });
     const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
     const hasTx=dayTxs.length>0;
-    html+=`<div onclick="showDayDetail(${d})" style="padding:6px 2px;border-radius:8px;cursor:${hasTx?'pointer':'default'};background:${isToday?'rgba(26,115,232,0.15)':'none'};position:relative">
-      <div style="font-size:13px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--blue)':'var(--text)'}">${d}</div>
-      ${hasTx?`<div style="width:6px;height:6px;background:var(--green);border-radius:50%;margin:0 auto"></div>`:''}
-    </div>`;
+    const bg=isToday?'rgba(26,115,232,0.15)':'none';
+    const fw=isToday?'700':'400';
+    const fc=isToday?'#1A73E8':'#1A1A2E';
+    const dot=hasTx?'<div style="width:6px;height:6px;background:#16A34A;border-radius:50%;margin:2px auto 0"></div>':'';
+    html+='<div onclick="showDayDetail('+d+')" style="padding:6px 2px;border-radius:8px;cursor:'+(hasTx?'pointer':'default')+';background:'+bg+'">'
+      +'<div style="font-size:13px;font-weight:'+fw+';color:'+fc+'">'+d+'</div>'
+      +dot
+      +'</div>';
   }
   document.getElementById('calGrid').innerHTML=html;
   document.getElementById('calDayDetail').innerHTML='';
 }
-
 function showDayDetail(day){
-  const dayTxs=calTxs.filter(tx=>{const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===day});
+  const kstOffset=9*60*60*1000;
+  const dayTxs=calTxs.filter(function(tx){
+    const kst=new Date(new Date(tx.created_at).getTime()+kstOffset);
+    return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===day;
+  });
   if(!dayTxs.length){document.getElementById('calDayDetail').innerHTML='';return}
-  document.getElementById('calDayDetail').innerHTML=`
-    <div style="font-size:13px;font-weight:700;margin-bottom:8px">${calMonth+1}월 ${day}일 거래</div>
-    ${dayTxs.map(tx=>{
-      const isPlus=['deposit','interest'].includes(tx.type);
-      const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정'}[tx.type]||tx.type;
-      return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F3F4F6;font-size:13px">
-        <span>${tx.note||label}</span>
-        <span style="font-weight:700;color:${isPlus?'var(--green)':'var(--red)'}">${isPlus?'+':'-'}${fmt(tx.amount)}</span>
-      </div>`;
-    }).join('')}`;
+  let html='<div style="font-size:13px;font-weight:700;margin-bottom:8px">'+(calMonth+1)+'월 '+day+'일 거래</div>';
+  dayTxs.forEach(function(tx){
+    const isPlus=['deposit','interest'].includes(tx.type);
+    const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정'}[tx.type]||tx.type;
+    const color=isPlus?'#16A34A':'#DC2626';
+    const sign=isPlus?'+':'-';
+    html+='<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F3F4F6;font-size:13px">'
+      +'<span>'+(tx.note||label)+'</span>'
+      +'<span style="font-weight:700;color:'+color+'">'+sign+fmt(tx.amount)+'</span>'
+      +'</div>';
+  });
+  document.getElementById('calDayDetail').innerHTML=html;
 }
   
 // ── Refresh FAB ──
