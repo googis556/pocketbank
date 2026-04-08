@@ -385,7 +385,10 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
     <button class="back-btn" id="accDetailBack">← 뒤로</button>
     <div class="balance-card">
       <div class="bc-label" id="accDetailName">통장명</div>
-      <div class="bc-amount" id="accDetailBalance">₩0</div>
+      <div style="display:flex;align-items:center;gap:10px">
+  <div class="bc-amount" id="accDetailBalance">₩0</div>
+  <button id="calBtn" onclick="openCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;font-size:18px;cursor:pointer;display:none">📅</button>
+</div>
       <div class="bc-grid" id="accDetailInterest"></div>
     </div>
     <div id="goalWrap" style="display:none">
@@ -553,6 +556,20 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
 </div>
 
 <!-- MODALS -->
+  <div class="modal-overlay" id="calModal">
+  <div class="modal">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
+      <button onclick="changeMonth(-1)" style="background:none;border:none;font-size:20px;cursor:pointer">◀</button>
+      <div style="font-size:16px;font-weight:700" id="calTitle"></div>
+      <button onclick="changeMonth(1)" style="background:none;border:none;font-size:20px;cursor:pointer">▶</button>
+    </div>
+    <div id="calGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:4px;text-align:center"></div>
+    <div id="calDayDetail" style="margin-top:14px"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('calModal')">닫기</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="createGroupModal">
   <div class="modal">
@@ -868,7 +885,7 @@ let gyeAccId=null; // for 계모임 통장 구성원 추가
 
 // ── Utils ──
 function fmt(n){return'₩'+Number(Math.round(n)).toLocaleString('ko-KR')}
-function fmtDate(d){const dt=new Date(d);return`${dt.getFullYear()}/${dt.getMonth()+1}/${dt.getDate()} ${dt.getHours()}:${String(dt.getMinutes()).padStart(2,'0')}`}
+function fmtDate(d){const dt=new Date(d);const kst=new Date(dt.getTime()+9*60*60*1000);return`${kst.getFullYear()}/${kst.getMonth()+1}/${kst.getDate()} ${kst.getHours()}:${String(kst.getMinutes()).padStart(2,'0')}`}
 function localDT(d){const dt=new Date(d);const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`}
 function todayStr(){const dt=new Date();const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
@@ -1267,7 +1284,7 @@ async function openAccDetail(accId){
 
   // 계모임 구성원
   const isGye=currentGroup.type==='gye'&&!acc.user_id;
-  if(isGye){
+  if(isGye&&!fromAccount)
     gyeAccId=accId;
     document.getElementById('gyeAccMembersWrap').style.display='block';
     await loadGyeAccMembers(accId);
@@ -1290,6 +1307,7 @@ async function openAccDetail(accId){
 document.getElementById('accActions').style.display=fromAccount?'none':'flex';
 document.querySelectorAll('#accDetailScreen .act-row').forEach(el=>el.style.display=fromAccount?'none':'flex');
 document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
+  document.getElementById('calBtn').style.display=fromAccount?'block':'none';
   showScreen('accDetailScreen');
 }
 
@@ -1859,6 +1877,56 @@ async function submitLink(){
 }
 function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;db.from('links').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadLinks()})}
 
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[];
+
+async function openCalendar(){
+  calAccId=detailAccount.id;
+  calYear=new Date().getFullYear();calMonth=new Date().getMonth();
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',calAccId).order('created_at',{ascending:true});
+  calTxs=txs||[];
+  renderCalendar();
+  showModal('calModal');
+}
+
+function changeMonth(dir){calMonth+=dir;if(calMonth>11){calMonth=0;calYear++}else if(calMonth<0){calMonth=11;calYear--}renderCalendar()}
+
+function renderCalendar(){
+  const today=new Date();
+  document.getElementById('calTitle').textContent=`${calYear}년 ${calMonth+1}월`;
+  const days=['일','월','화','수','목','금','토'];
+  const firstDay=new Date(calYear,calMonth,1).getDay();
+  const lastDate=new Date(calYear,calMonth+1,0).getDate();
+  let html=days.map(d=>`<div style="font-size:11px;font-weight:700;color:var(--text-sub);padding:4px">${d}</div>`).join('');
+  for(let i=0;i<firstDay;i++) html+=`<div></div>`;
+  for(let d=1;d<=lastDate;d++){
+    const dateStr=`${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dayTxs=calTxs.filter(tx=>{const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===d&&['deposit','interest'].includes(tx.type)});
+    const isToday=today.getFullYear()===calYear&&today.getMonth()===calMonth&&today.getDate()===d;
+    const hasTx=dayTxs.length>0;
+    html+=`<div onclick="showDayDetail(${d})" style="padding:6px 2px;border-radius:8px;cursor:${hasTx?'pointer':'default'};background:${isToday?'rgba(26,115,232,0.15)':'none'};position:relative">
+      <div style="font-size:13px;font-weight:${isToday?'700':'400'};color:${isToday?'var(--blue)':'var(--text)'}">${d}</div>
+      ${hasTx?`<div style="width:6px;height:6px;background:var(--green);border-radius:50%;margin:0 auto"></div>`:''}
+    </div>`;
+  }
+  document.getElementById('calGrid').innerHTML=html;
+  document.getElementById('calDayDetail').innerHTML='';
+}
+
+function showDayDetail(day){
+  const dayTxs=calTxs.filter(tx=>{const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);return kst.getFullYear()===calYear&&kst.getMonth()===calMonth&&kst.getDate()===day});
+  if(!dayTxs.length){document.getElementById('calDayDetail').innerHTML='';return}
+  document.getElementById('calDayDetail').innerHTML=`
+    <div style="font-size:13px;font-weight:700;margin-bottom:8px">${calMonth+1}월 ${day}일 거래</div>
+    ${dayTxs.map(tx=>{
+      const isPlus=['deposit','interest'].includes(tx.type);
+      const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정'}[tx.type]||tx.type;
+      return`<div style="display:flex;justify-content:space-between;padding:7px 0;border-bottom:1px solid #F3F4F6;font-size:13px">
+        <span>${tx.note||label}</span>
+        <span style="font-weight:700;color:${isPlus?'var(--green)':'var(--red)'}">${isPlus?'+':'-'}${fmt(tx.amount)}</span>
+      </div>`;
+    }).join('')}`;
+}
+  
 // ── Refresh FAB ──
 function refreshCurrentTab(){switchTab(currentTab)}
 
