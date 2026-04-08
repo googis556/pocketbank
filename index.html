@@ -406,18 +406,17 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
       </div>
     </div>
     <div id="starWrap" style="display:none">
-      <div class="card">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
-          <div style="font-size:14px;font-weight:700">⭐ 별 현황</div>
-          <div class="star-count-big" id="totalStars">0개</div>
-        </div>
-        <div id="starTypeList"></div>
-        <div class="act-row" style="margin-top:9px">
-          <button class="act-btn str" onclick="openGiveStars()">⭐ 지급</button>
-          <button class="act-btn wit" onclick="openTakeStars()">❌ 차감</button>
-          <button class="act-btn dep" onclick="openConvertStars()">💰 전환</button>
-        </div>
-      </div>
+  <div class="card">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="font-size:14px;font-weight:700">⭐ 별별통장</div>
+      <div class="star-count-big" id="totalStars">0개</div>
+    </div>
+    <div class="act-row" style="margin-top:9px">
+      <button class="act-btn str" onclick="openGiveStars()">⭐ 지급</button>
+      <button class="act-btn wit" onclick="openTakeStars()">❌ 차감</button>
+      <button class="act-btn dep" onclick="openConvertStars()">💰 전환</button>
+    </div>
+  </div>
     </div>
        <div class="act-row" id="accActions">
       <button class="act-btn dep" onclick="openTx('deposit')">💰 입금</button>
@@ -840,7 +839,7 @@ body{font-family:'Noto Sans KR',sans-serif;background:var(--bg);color:var(--text
   <div class="modal">
     <h3>별 → 돈 전환</h3>
     <div class="ig"><label>전환할 별 개수</label><input type="number" id="cvStarCount" min="1" oninput="calcConvert()"></div>
-    <div class="ig"><label>별 1개당 금액</label><input type="text" id="cvRate" inputmode="numeric" oninput="fmtComma(this);calcConvert()"></div>
+    <div class="ig"><label>입금할 통장</label><select id="cvTargetAcc"></select></div>
     <div class="info-box" id="cvPreview"></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('convertStarsModal')">취소</button>
@@ -1288,7 +1287,7 @@ async function openAccDetail(accId){
   const{data:acc}=await db.from('accounts').select('*').eq('id',accId).single();
   detailAccount=acc;
   document.getElementById('accDetailName').textContent=acc.name;
-  document.getElementById('accDetailBalance').textContent=fmt(acc.balance);
+  document.getElementById('accDetailBalance').textContent=acc.type==='star'?acc.balance+'개':fmt(acc.balance);
   const{monthly,yearly}=calcInt(acc.balance,acc.interest_rate,acc.interest_method);
   document.getElementById('accDetailInterest').innerHTML=`<span>연 이자율</span><span class="bc-val">${acc.interest_rate}%</span><span>방식</span><span class="bc-val">${methodLabel(acc.interest_method)}</span><span>월 이자</span><span class="bc-val">${fmt(monthly)}</span><span>연 이자</span><span class="bc-val">${fmt(yearly)}</span>`;
 
@@ -1389,17 +1388,13 @@ function renderPaymentTable(members,txs){
 
 async function loadStarInfo(accId){
   const{data:history}=await db.from('star_history').select('*,star_types(name,icon)').eq('account_id',accId);
-  const totals={};(history||[]).forEach(h=>{totals[h.star_type_id]=(totals[h.star_type_id]||0)+h.amount});
-  const total=Object.values(totals).reduce((s,v)=>s+v,0);
+  const total=(history||[]).reduce((s,h)=>s+h.amount,0);
   document.getElementById('totalStars').textContent=total+'개';
+  // 기본 별 종류 없으면 생성
   const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
   if(!types||!types.length){
     const defaults=[{name:'심부름별',icon:'🛒',stars_per_task:3},{name:'학습별',icon:'📚',stars_per_task:5},{name:'구두별',icon:'👞',stars_per_task:1},{name:'빨래별',icon:'🧺',stars_per_task:2},{name:'기타별',icon:'💡',stars_per_task:1}];
     for(const d of defaults) await db.from('star_types').insert({group_id:currentGroup.id,...d});
-    const{data:newTypes}=await db.from('star_types').select('*').eq('group_id',currentGroup.id);
-    document.getElementById('starTypeList').innerHTML=(newTypes||[]).map(t=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F3F4F6"><span>${t.icon||'⭐'} ${t.name}</span><span style="font-weight:700;color:var(--gold)">${totals[t.id]||0}개</span></div>`).join('');
-  } else {
-    document.getElementById('starTypeList').innerHTML=types.map(t=>`<div style="display:flex;justify-content:space-between;padding:5px 0;border-bottom:1px solid #F3F4F6"><span>${t.icon||'⭐'} ${t.name}</span><span style="font-weight:700;color:var(--gold)">${totals[t.id]||0}개</span></div>`).join('');
   }
 }
 
@@ -1619,29 +1614,53 @@ function openGiveStars(){starsAction='give';document.getElementById('starsTitle'
 function openTakeStars(){starsAction='take';document.getElementById('starsTitle').textContent='❌ 별 차감';document.getElementById('starCount').value='';document.getElementById('starNote').value='';loadStarTypesSel();showModal('starsModal')}
 async function submitStars(){
   const typeId=document.getElementById('starTypeSel').value;
+  const typeName=document.getElementById('starTypeSel').selectedOptions[0]?.text||'별';
   const count=parseInt(document.getElementById('starCount').value)||0;
   const note=document.getElementById('starNote').value;
   if(!count||count<=0){showToast('개수를 입력해주세요');return}
   const amount=starsAction==='give'?count:-count;
+  const newBal=detailAccount.balance+amount;
   await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:typeId,amount,note});
-  closeModal('starsModal');showToast(starsAction==='give'?`별 ${count}개 지급됐어요!`:`별 ${count}개 차감됐어요!`);await openAccDetail(detailAccount.id);
+  await db.from('transactions').insert({account_id:detailAccount.id,type:starsAction==='give'?'deposit':'withdraw',amount:count,balance_after:newBal,note:typeName+' '+count+'개'+(note?' · '+note:'')});
+  await db.from('accounts').update({balance:newBal}).eq('id',detailAccount.id);
+  closeModal('starsModal');showToast(starsAction==='give'?'별 '+count+'개 지급됐어요!':'별 '+count+'개 차감됐어요!');
+  await openAccDetail(detailAccount.id);
 }
-function openConvertStars(){document.getElementById('cvStarCount').value='';document.getElementById('cvRate').value='';document.getElementById('cvPreview').innerHTML='';showModal('convertStarsModal')}
+async function openConvertStars(){
+  document.getElementById('cvStarCount').value='';
+  document.getElementById('cvPreview').innerHTML='';
+  // 같은 구성원의 다른 통장 목록 불러오기
+  const userId=detailAccount.user_id;
+  const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',userId).neq('id',detailAccount.id).neq('type','star');
+  const sel=document.getElementById('cvTargetAcc');
+  if(!accs||!accs.length){
+    showToast('기본통장을 만들어주세요!');return;
+  }
+  sel.innerHTML=accs.map(function(a){return'<option value="'+a.id+'">'+a.name+'</option>'}).join('');
+  showModal('convertStarsModal');
+}
 function calcConvert(){
   const count=parseInt(document.getElementById('cvStarCount').value)||0;
-  const rate=parseComma(document.getElementById('cvRate').value);
-  if(count&&rate) document.getElementById('cvPreview').innerHTML=`별 ${count}개 × ${fmt(rate)} = <b>${fmt(count*rate)}</b>`;
+  if(count) document.getElementById('cvPreview').innerHTML='별 '+count+'개 × '+fmt(1000)+' = <b>'+fmt(count*1000)+'</b>';
 }
 async function submitConvertStars(){
   const count=parseInt(document.getElementById('cvStarCount').value)||0;
-  const rate=parseComma(document.getElementById('cvRate').value);
-  if(!count||!rate){showToast('개수와 금액을 입력해주세요');return}
-  const money=count*rate;const newBal=detailAccount.balance+money;
-  await db.from('transactions').insert({account_id:detailAccount.id,type:'star_convert',amount:money,balance_after:newBal,note:`별 ${count}개 → ${fmt(money)}`});
-  await db.from('accounts').update({balance:newBal}).eq('id',detailAccount.id);
-  const{data:types}=await db.from('star_types').select('*').eq('group_id',currentGroup.id).limit(1);
-  if(types&&types.length) await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:types[0].id,amount:-count,note:'돈으로 전환'});
-  closeModal('convertStarsModal');showToast(`${fmt(money)} 적립됐어요!`);await openAccDetail(detailAccount.id);await loadHome();
+  const targetAccId=document.getElementById('cvTargetAcc').value;
+  if(!count){showToast('개수를 입력해주세요');return}
+  if(!targetAccId){showToast('통장을 선택해주세요');return}
+  const money=count*1000;
+  // 별별통장에서 별 차감
+  const newStarBal=detailAccount.balance-count;
+  await db.from('star_history').insert({account_id:detailAccount.id,star_type_id:null,amount:-count,note:'돈으로 전환'});
+  await db.from('transactions').insert({account_id:detailAccount.id,type:'star_convert',amount:count,balance_after:newStarBal,note:'별 '+count+'개 전환'});
+  await db.from('accounts').update({balance:newStarBal}).eq('id',detailAccount.id);
+  // 대상 통장에 입금
+  const{data:targetAcc}=await db.from('accounts').select('balance').eq('id',targetAccId).single();
+  const newBal=targetAcc.balance+money;
+  await db.from('transactions').insert({account_id:targetAccId,type:'deposit',amount:money,balance_after:newBal,note:'별 '+count+'개 전환 '+fmt(money)});
+  await db.from('accounts').update({balance:newBal}).eq('id',targetAccId);
+  closeModal('convertStarsModal');showToast('별 '+count+'개 → '+fmt(money)+' 전환됐어요!');
+  await openAccDetail(detailAccount.id);await loadHome();
 }
 
 // ── Auto Transfer ──
