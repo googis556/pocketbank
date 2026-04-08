@@ -1072,12 +1072,19 @@ async function loadHome(){
       const{data:txs}=await db.from('transactions').select('*,accounts(name,user_id,users(nickname))').in('account_id',accIds).order('created_at',{ascending:false}).limit(100);
       recentTxAll=txs||[];recentTxShown=10;renderRecentTx();
     }
-  } else {
+ } else {
     document.getElementById('memberName').textContent=currentUser.nickname;
-    const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
-    const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
+    let accs=[];
+    if(currentGroup.type==='gye'){
+      const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
+      accs=gyeAccs||[];
+    } else {
+      const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
+      accs=myAccs||[];
+    }
+    const total=accs.reduce((s,a)=>s+a.balance,0);
     document.getElementById('memberTotal').textContent=fmt(total);
-    renderMemberAccCards(accs||[],document.getElementById('memberAccList'));
+    renderMemberAccCards(accs,document.getElementById('memberAccList'));
   }
 }
 
