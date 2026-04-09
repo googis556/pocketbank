@@ -1057,8 +1057,11 @@ async function loadGroupSelect(){
     const actionBtn=m.role==='admin'
       ?'<button onclick="event.stopPropagation();confirmDeleteGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">삭제</button>'
       :'<button onclick="event.stopPropagation();confirmLeaveGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">탈퇴</button>';
-    return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')">'
-      +'<div class="group-icon">'+(typeIcon[m.groups.type]||'👥')+'</div>'
+    const groupAvatar=m.groups.photo
+      ?'<div class="group-icon" style="overflow:hidden;cursor:pointer" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"><img src="'+m.groups.photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px"></div>'
+      :'<div class="group-icon" style="cursor:pointer" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"><span style="font-size:20px">'+(typeIcon[m.groups.type]||'👥')+'</span><div style="position:absolute;bottom:0;right:0;background:var(--blue);border-radius:50%;width:14px;height:14px;font-size:9px;display:flex;align-items:center;justify-content:center;color:white">+</div></div>';
+    return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')" style="position:relative">'
+      +groupAvatar
       +'<div class="group-info">'
       +'<div class="group-name">'+m.groups.name+'</div>'
       +'<div class="group-meta">'+(typeLabel[m.groups.type]||'그룹')+'</div>'
@@ -2348,6 +2351,22 @@ return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border
 function closePhotoOverlay(){
   document.getElementById('photoOverlay').style.display='none';
 }
+  let uploadGroupId=null;
+function uploadGroupPhoto(groupId){
+  uploadGroupId=groupId;
+  document.getElementById('groupPhotoInput').click();
+}
+async function handleGroupPhotoUpload(e){
+  const file=e.target.files[0];if(!file)return;
+  const reader=new FileReader();
+  reader.onload=async(ev)=>{
+    const b64=ev.target.result;
+    await db.from('groups').update({photo:b64}).eq('id',uploadGroupId);
+    showToast('그룹 사진이 변경됐어요!');
+    await loadGroupSelect();
+  };
+  reader.readAsDataURL(file);e.target.value='';
+}
 // ── Refresh FAB ──
 function refreshCurrentTab(){switchTab(currentTab)}
 
@@ -2404,5 +2423,6 @@ function switchTab(tab){
   <div id="photoOverlay" onclick="closePhotoOverlay()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:400;align-items:center;justify-content:center">
   <img id="photoOverlayImg" style="max-width:90%;max-height:90%;border-radius:50%">
 </div>
+  <input type="file" id="groupPhotoInput" accept="image/*" style="display:none" onchange="handleGroupPhotoUpload(event)">
 </body>
 </html>
