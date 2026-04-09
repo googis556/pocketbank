@@ -2021,7 +2021,11 @@ async function regenInviteCode(){
  async function loadAdminAccList(){
   const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
   const list=document.getElementById('adminAccList');
-  if(!members||!members.length){list.innerHTML='<div class="empty"><div class="ei">📭</div>구성원이 없어요</div>';return}
+  if(!members||!members.length){
+    if(currentGroup.type!=='gye'&&currentGroup.type!=='friend'){
+      list.innerHTML='<div class="empty"><div class="ei">📭</div>구성원이 없어요</div>';return;
+    }
+  }
   let html='';
   for(const m of members){
     const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
