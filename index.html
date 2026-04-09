@@ -898,6 +898,18 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
   </div>
 </div>
+  <div class="modal-overlay" id="convertStarsModal">
+  <div class="modal">
+    <h3>별 → 돈 전환</h3>
+    <div class="ig"><label>전환할 별 개수</label><input type="number" id="cvStarCount" min="1" oninput="calcConvert()"></div>
+    <div class="ig"><label>입금할 통장</label><select id="cvTargetAcc"></select></div>
+    <div class="info-box" id="cvPreview"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('convertStarsModal')">취소</button>
+      <button class="mbtn mbtn-green" onclick="submitConvertStars()">전환</button>
+    </div>
+  </div>
+</div>
 <script>
 const SB_URL='https://ntaaxhayfraqcpnbreme.supabase.co';
 const SB_KEY='sb_publishable_3B1-IKzYNazYswN91dtHsg_16Mb6lKY';
