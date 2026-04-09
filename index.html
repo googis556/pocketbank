@@ -1114,11 +1114,11 @@ async function loadHome(){
     const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     let total=0;const summaries=[];
     if(members){
-      for(const m of members){
-        const{data:accs}=await db.from('accounts').select('balance').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
-        const bal=(accs||[]).reduce((s,a)=>s+a.balance,0);
-        total+=bal;summaries.push(`${m.users.nickname}: ${fmt(bal)}`);
-      }
+      const{data:allAccs}=await db.from('accounts').select('balance,user_id').eq('group_id',currentGroup.id);
+      members.forEach(function(m){
+        const bal=(allAccs||[]).filter(a=>a.user_id===m.user_id).reduce((s,a)=>s+a.balance,0);
+        total+=bal;summaries.push(m.users.nickname+': '+fmt(bal));
+      });
     }
     // 계모임은 공용 통장 잔액도 합산
     if(currentGroup.type==='gye'){
