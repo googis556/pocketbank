@@ -983,7 +983,9 @@ window.onload=()=>{
 async function checkLoginType(){
   const nick=document.getElementById('loginNickname').value.trim();
   if(!nick)return;
-  const{data:user}=await db.from('users').select('login_type').eq('user_id',nick).single();
+  let{data:user}=await db.from('users').select('login_type').eq('user_id',nick).single();
+  // 기존 별칭 가입자 폴백
+  if(!user){const{data:old}=await db.from('users').select('login_type').eq('nickname',nick).is('user_id',null).single();user=old;}
   if(!user)return;
   const lt=user.login_type||'pin';
   document.getElementById('loginPinWrap').style.display=lt==='password'?'none':'block';
@@ -997,8 +999,13 @@ async function doLogin(){
   const pin=document.getElementById('loginPin').value;
   const pwd=document.getElementById('loginPwd').value;
   if(!nick){showToast('아이디를 입력해주세요');return}
-  // 아이디로 유저 먼저 찾기
-  const{data:userInfo}=await db.from('users').select('login_type').eq('user_id',nick).single();
+  // user_id로 먼저 찾고, 없으면 기존 별칭(nickname) 폴백
+  let{data:userInfo}=await db.from('users').select('id,login_type').eq('user_id',nick).single();
+  let isLegacy=false;
+  if(!userInfo){
+    const{data:old}=await db.from('users').select('id,login_type').eq('nickname',nick).is('user_id',null).single();
+    if(old){userInfo=old;isLegacy=true;}
+  }
   if(userInfo){
     const lt=userInfo.login_type||'pin';
     if(lt==='pin'&&pin.length!==4){showToast('PIN 4자리를 입력해주세요');return}
@@ -1012,19 +1019,25 @@ async function doLogin(){
   let user=null;
   if(userInfo){
     const lt=userInfo.login_type||'pin';
+    const col=isLegacy?'nickname':'user_id';
     if(lt==='pin'){
-      const{data:u}=await db.from('users').select('*').eq('user_id',nick).eq('pin',pin).single();
+      const{data:u}=await db.from('users').select('*').eq(col,nick).eq('pin',pin).single();
       user=u;
     } else if(lt==='password'){
-      const{data:u}=await db.from('users').select('*').eq('user_id',nick).eq('password',pwd).single();
+      const{data:u}=await db.from('users').select('*').eq(col,nick).eq('password',pwd).single();
       user=u;
     } else if(lt==='both'){
-      const{data:u}=await db.from('users').select('*').eq('user_id',nick).eq('pin',pin).eq('password',pwd).single();
+      const{data:u}=await db.from('users').select('*').eq(col,nick).eq('pin',pin).eq('password',pwd).single();
       user=u;
     }
   }
   clearInterval(iv);
   if(!user){fill.style.width='0%';setTimeout(()=>{prog.style.display='none'},300);showToast('아이디 또는 PIN이 틀렸어요');return}
+  // 기존 별칭 가입자라면 user_id를 nickname으로 자동 설정 (마이그레이션)
+  if(isLegacy&&!user.user_id){
+    await db.from('users').update({user_id:nick}).eq('id',user.id);
+    user.user_id=nick;
+  }
   fill.style.width='100%';setTimeout(()=>{prog.style.display='none';fill.style.width='0%'},400);
   if(document.getElementById('saveNick').checked)localStorage.setItem('pb_uid',nick);
   else localStorage.removeItem('pb_uid');
