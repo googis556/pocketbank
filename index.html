@@ -367,7 +367,10 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="bc-amount" id="memberTotal">₩0</div>
     </div>
     <div id="memberViewMembersWrap" style="display:none">
-      <button onclick="toggleMemberListForMember()" style="width:100%;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-bottom:10px;box-shadow:var(--shadow)">👥 구성원 보기</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button onclick="toggleMemberListForMember()" style="flex:1;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow)">👥 구성원 보기</button>
+        <button onclick="openInviteModal()" style="padding:10px 14px;background:var(--blue);color:white;border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow)">구성원 초대</button>
+      </div>
       <div id="memberListForMember" style="display:none"></div>
     </div>
     <div class="sec-title">최근 활동</div>
@@ -628,6 +631,30 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div id="calDayDetail" style="margin-top:14px"></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('calModal')">닫기</button>
+    </div>
+  </div>
+</div>
+
+<!-- 구성원 초대 모달 -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <h3>구성원 초대</h3>
+    <div class="ig"><label>초대할 아이디</label><input type="text" id="inviteUserId" placeholder="예: parkjimin" autocomplete="off" style="text-transform:lowercase"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('inviteModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitInvite()">초대</button>
+    </div>
+  </div>
+</div>
+
+<!-- 초대 수신 팝업 -->
+<div class="modal-overlay" id="inviteReceiveModal">
+  <div class="modal">
+    <h3>그룹 초대</h3>
+    <p id="inviteReceiveMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.7"></p>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="declineInvite()">거절</button>
+      <button class="mbtn mbtn-primary" onclick="acceptInvite()">수락</button>
     </div>
   </div>
 </div>
@@ -1264,6 +1291,7 @@ async function loadGroupSelect(){
   document.getElementById('groupWrap').style.display='flex';
   document.getElementById('groupSub').textContent=`${currentUser.nickname}님, 반가워요!`;
   checkTodayReminders();
+  checkPendingInvites();
   const{data:gms}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
   const list=document.getElementById('groupList');
   if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
@@ -1360,7 +1388,7 @@ async function loadHome(){
     }
     document.getElementById('adminTotal').textContent=fmt(total);
     if(currentGroup.type==='gye'){
-      document.getElementById('adminSummary').innerHTML='<button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">👥 구성원 보기</button><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
+      document.getElementById('adminSummary').innerHTML='<div style="display:flex;gap:8px"><button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">👥 구성원 보기</button><button onclick="openInviteModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">구성원 초대</button></div><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
       window._gyeMembers=members;
     } else {
       document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
@@ -2643,6 +2671,58 @@ function switchTab(tab){
     historyBackBtn.style.display='flex';
     loadAllTransactions();
   }
+}
+
+// ── 구성원 초대 ──
+let pendingInviteId=null;
+function openInviteModal(){
+  document.getElementById('inviteUserId').value='';
+  showModal('inviteModal');
+}
+async function submitInvite(){
+  const uid=document.getElementById('inviteUserId').value.trim().toLowerCase();
+  if(!uid){showToast('아이디를 입력해주세요');return}
+  if(!currentGroup){showToast('그룹을 선택해주세요');return}
+  const{data:target}=await db.from('users').select('id,nickname').eq('user_id',uid).single();
+  if(!target){showToast('존재하지 않는 아이디예요');return}
+  // 이미 구성원인지 확인
+  const{data:existing}=await db.from('group_members').select('id').eq('group_id',currentGroup.id).eq('user_id',target.id).single();
+  if(existing){showToast('이미 구성원이에요');return}
+  // 이미 초대된지 확인
+  const{data:dup}=await db.from('invitations').select('id').eq('group_id',currentGroup.id).eq('invitee_id',target.id).eq('status','pending').single();
+  if(dup){showToast('이미 초대를 보냈어요');return}
+  await db.from('invitations').insert({group_id:currentGroup.id,inviter_id:currentUser.id,invitee_id:target.id});
+  closeModal('inviteModal');
+  showToast(target.nickname+'님께 초대를 보냈어요!');
+}
+async function checkPendingInvites(){
+  if(!currentUser)return;
+  const{data:invites}=await db.from('invitations').select('*,groups(name),users!invitations_inviter_id_fkey(nickname)').eq('invitee_id',currentUser.id).eq('status','pending').limit(1);
+  if(!invites||!invites.length)return;
+  const inv=invites[0];
+  pendingInviteId=inv.id;
+  document.getElementById('inviteReceiveMsg').textContent=
+    '"'+inv.groups.name+'" 그룹에\n'+inv.users.nickname+'님이 초대했어요.\n수락할까요?';
+  showModal('inviteReceiveModal');
+}
+async function acceptInvite(){
+  if(!pendingInviteId)return;
+  const{data:inv}=await db.from('invitations').select('*').eq('id',pendingInviteId).single();
+  if(!inv)return;
+  await db.from('group_members').insert({group_id:inv.group_id,user_id:currentUser.id,role:'member'});
+  await db.from('invitations').update({status:'accepted'}).eq('id',pendingInviteId);
+  closeModal('inviteReceiveModal');
+  showToast('그룹에 참여했어요!');
+  pendingInviteId=null;
+  await loadGroupSelect();
+}
+async function declineInvite(){
+  if(!pendingInviteId)return;
+  await db.from('invitations').update({status:'declined'}).eq('id',pendingInviteId);
+  closeModal('inviteReceiveModal');
+  pendingInviteId=null;
+  // 다음 초대 확인
+  setTimeout(checkPendingInvites,300);
 }
 
 // ── MY 메뉴 ──
