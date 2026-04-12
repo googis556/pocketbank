@@ -332,6 +332,10 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
         <div class="profile-name" id="adminName"></div>
         <div class="profile-sub">은행장</div>
       </div>
+      <div id="loanWarningAdmin" style="display:none;margin-left:auto;position:relative">
+        <button onclick="toggleLoanWarning(event)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px">⚠️</button>
+        <div id="loanWarningTooltip" style="display:none;position:absolute;right:0;top:32px;background:#1A1A2E;color:white;padding:10px 14px;border-radius:10px;font-size:13px;white-space:nowrap;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.2)">채권자에게 그룹을 위임하세요</div>
+      </div>
     </div>
     <div class="balance-card">
       <div class="bc-label">전체 예금 총액</div>
@@ -352,6 +356,10 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="profile-info">
         <div class="profile-name" id="memberName"></div>
         <div class="profile-sub" id="memberSub"></div>
+      </div>
+      <div id="loanWarningMember" style="display:none;margin-left:auto;position:relative">
+        <button onclick="toggleLoanWarning(event)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px">⚠️</button>
+        <div id="loanWarningTooltipMember" style="display:none;position:absolute;right:0;top:32px;background:#1A1A2E;color:white;padding:10px 14px;border-radius:10px;font-size:13px;white-space:nowrap;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.2)">채권자에게 그룹을 위임하세요</div>
       </div>
     </div>
     <div class="balance-card">
@@ -1331,7 +1339,7 @@ async function joinGroup(){
 
 // ── Home ──
 async function loadHome(){
-  renderMyAvatar();await checkNoticeBadge();
+  renderMyAvatar();await checkNoticeBadge();checkLoanWarning();
   const isAdmin=currentGM.role==='admin';
   if(isAdmin){
     document.getElementById('adminName').textContent=currentUser.nickname;
@@ -2813,27 +2821,70 @@ async function generateIOU(){
   }
 }
 async function createLoanAccount(){
-  if(!currentGroup){showToast('먼저 그룹을 선택해주세요');return}
   const debtName=document.getElementById('iouDebtorName').value.trim();
   const amount=parseInt(document.getElementById('iouAmount').value)||0;
   const rate=parseFloat(document.getElementById('iouRate').value)||0;
   const loanDate=document.getElementById('iouLoanDate').value;
   const repayDate=document.getElementById('iouRepayDate').value;
   if(!debtName||!amount){showToast('채무자 이름과 금액을 입력해주세요');return}
-  if(!confirm(debtName+' 차용 통장을 만들까요?\n초기 잔액: -'+fmt(amount)+'원'))return;
+  if(!confirm('"'+debtName+' 차용" 그룹이 새로 생성되고\n마이너스 통장('+fmt(-amount)+'원)이 만들어집니다.\n계속할까요?'))return;
+  const{data:group}=await db.from('groups').insert({
+    name:debtName+' 차용',type:'friend',
+    invite_code:Math.random().toString(36).slice(2,8).toUpperCase()
+  }).select().single();
+  if(!group){showToast('그룹 생성 실패');return}
+  await db.from('group_members').insert({group_id:group.id,user_id:currentUser.id,role:'admin'});
   const{data:acc}=await db.from('accounts').insert({
-    group_id:currentGroup.id,user_id:null,name:debtName+' 차용',type:'loan',
+    group_id:group.id,user_id:null,name:debtName+' 차용',type:'loan',
     interest_rate:rate,interest_method:'simple',balance:-amount,
     open_date:loanDate||new Date().toISOString().split('T')[0]
   }).select().single();
   if(acc){
     await db.from('transactions').insert({
-      account_id:acc.id,type:'withdraw',amount:amount,balance_after:-amount,note:'차용 원금 - '+debtName+(repayDate?' (상환일: '+repayDate+')':'')
+      account_id:acc.id,type:'withdraw',amount:amount,balance_after:-amount,
+      note:'차용 원금 - '+debtName+(repayDate?' (상환일: '+repayDate+')':'')
     });
   }
-  showToast('대출 통장이 만들어졌어요!');
   closeIOU();
+  showToast('그룹과 대출 통장이 만들어졌어요!');
+  setTimeout(()=>alert('⚠️ 채권자에게 "'+group.name+'" 그룹을 위임하세요.\n그룹 목록 → 해당 그룹 → 관리 → 위임'),500);
+  await checkLoanWarning();
+  await loadGroupSelect();
 }
+
+async function checkLoanWarning(){
+  if(!currentUser)return;
+  const{data:gms}=await db.from('group_members').select('group_id').eq('user_id',currentUser.id).eq('role','admin');
+  if(!gms||!gms.length){hideLoanWarning();return}
+  let hasLoan=false;
+  for(const gm of gms){
+    const{data:accs}=await db.from('accounts').select('id').eq('group_id',gm.group_id).eq('type','loan').limit(1);
+    if(accs&&accs.length){hasLoan=true;break}
+  }
+  const a=document.getElementById('loanWarningAdmin');
+  const m=document.getElementById('loanWarningMember');
+  if(a)a.style.display=hasLoan?'block':'none';
+  if(m)m.style.display=hasLoan?'block':'none';
+}
+function hideLoanWarning(){
+  ['loanWarningAdmin','loanWarningMember'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+}
+function toggleLoanWarning(e){
+  e.stopPropagation();
+  const t1=document.getElementById('loanWarningTooltip');
+  const t2=document.getElementById('loanWarningTooltipMember');
+  const visible=t1&&t1.style.display==='block';
+  if(t1)t1.style.display=visible?'none':'block';
+  if(t2)t2.style.display=visible?'none':'block';
+}
+document.addEventListener('click',function(){
+  const t1=document.getElementById('loanWarningTooltip');
+  const t2=document.getElementById('loanWarningTooltipMember');
+  if(t1)t1.style.display='none';
+  if(t2)t2.style.display='none';
+});
 </script>
 
   <div id="photoOverlay" onclick="closePhotoOverlay()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:400;align-items:center;justify-content:center">
