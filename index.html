@@ -7,6 +7,7 @@
 <title>포켓뱅크</title>
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <style>
 :root{
   --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
@@ -236,7 +237,19 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .acc-member-row:last-child{border-bottom:none}
 .acc-member-name{font-size:14px;font-weight:600}
 .acc-member-bal{font-size:14px;font-weight:700;color:var(--blue)}
-.delegate-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
+.delegate-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:’Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
+
+/* MY 메뉴 바텀시트 */
+.my-menu-btn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;padding:14px 4px;font-size:15px;font-weight:600;cursor:pointer;color:var(--text);border-bottom:1px solid #F3F4F6;font-family:’Pretendard’,-apple-system,sans-serif;text-align:left}
+.my-menu-btn:last-child{border-bottom:none}
+.my-menu-btn:active{background:#F8FAFF}
+/* 알림 / 차용증 전체화면 */
+.full-screen{display:none;position:fixed;inset:0;z-index:250;background:var(--bg);max-width:480px;margin:0 auto;overflow-y:auto}
+.full-screen-header{background:var(--blue);color:white;padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.full-screen-back{background:none;border:none;color:white;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.full-screen-title{font-size:17px;font-weight:900}
+/* 차용증 대출 잔액 빨간색 */
+.acc-balance.loan{color:var(--red)}
 </style>
 
 </head>
@@ -300,7 +313,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn" onclick="openMyInfo()" style="background:#DC2626">MY</button>
+      <button class="hbtn" onclick="openMyMenu()" style="background:#DC2626">MY</button>
       <button class="hbtn" onclick="changeGroup()">그룹변경</button>
       <button class="hbtn" onclick="logout()">로그아웃</button>
     </div>
@@ -613,6 +626,92 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
   </div>
 </div>
+
+<!-- MY 메뉴 바텀시트 -->
+<div id="myMenuSheet" onclick="if(event.target===this)closeMyMenu()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.45)">
+  <div style="position:absolute;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:white;border-radius:20px 20px 0 0;padding:16px 20px 32px">
+    <div style="width:36px;height:4px;background:#E5E7EB;border-radius:2px;margin:0 auto 16px"></div>
+    <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:4px">MY 메뉴</div>
+    <button class="my-menu-btn" onclick="closeMyMenu();openMyInfo()"><span style="font-size:20px">👤</span> 개인정보 수정</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openReminderScreen()"><span style="font-size:20px">🔔</span> 알림 관리</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openIOU()"><span style="font-size:20px">📄</span> 차용증 작성</button>
+  </div>
+</div>
+
+<!-- 알림 관리 전체화면 -->
+<div class="full-screen" id="reminderScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="closeReminderScreen()">←</button>
+    <span class="full-screen-title">알림 관리</span>
+    <button onclick="openReminderAdd()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 14px;border-radius:12px;font-size:13px;cursor:pointer;font-weight:700">+ 추가</button>
+  </div>
+  <div style="padding:16px">
+    <div id="reminderList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
+
+<!-- 알림 추가 모달 -->
+<div class="modal-overlay" id="reminderAddModal">
+  <div class="modal">
+    <h3>알림 추가</h3>
+    <div class="ig"><label>제목</label><input type="text" id="remTitle" placeholder="예: 월세 입금, 용돈 지급"></div>
+    <div class="ig"><label>금액 (선택)</label><input type="number" id="remAmount" placeholder="예: 500000"></div>
+    <div class="ig"><label>날짜</label><input type="date" id="remDate" style="width:100%"></div>
+    <div class="ig">
+      <label>반복</label>
+      <div class="segment" id="remRepeatSeg">
+        <button class="seg-btn active" data-val="none" onclick="pickSeg(this,'remRepeat')">없음</button>
+        <button class="seg-btn" data-val="monthly" onclick="pickSeg(this,'remRepeat')">매월</button>
+        <button class="seg-btn" data-val="yearly" onclick="pickSeg(this,'remRepeat')">매년</button>
+      </div>
+      <input type="hidden" id="remRepeat" value="none">
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('reminderAddModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitReminder()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 차용증 작성 전체화면 -->
+<div class="full-screen" id="iouScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="closeIOU()">←</button>
+    <span class="full-screen-title">차용증 작성</span>
+  </div>
+  <div style="padding:16px">
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--blue)">채권자 (빌려주는 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="iouCreditorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처</label><input type="tel" id="iouCreditorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="iouCreditorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--red)">채무자 (빌리는 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="iouDebtorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처</label><input type="tel" id="iouDebtorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="iouDebtorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">대출 조건</div>
+      <div class="ig"><label>금액 (원)</label><input type="number" id="iouAmount" placeholder="1000000" oninput="calcMonthlyInterest()"></div>
+      <div class="ig"><label>연 이자율 (%)</label><input type="number" id="iouRate" value="0" step="0.1" oninput="calcMonthlyInterest()"></div>
+      <div id="iouMonthlyInterest" style="font-size:13px;color:var(--text-sub);margin-top:-8px;margin-bottom:12px;padding-left:2px"></div>
+      <div class="ig"><label>상환일</label><input type="date" id="iouRepayDate" style="width:100%"></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">채무자 서명</div>
+      <canvas id="signatureCanvas" width="400" height="120" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;touch-action:none;background:white"></canvas>
+      <button onclick="clearSignature()" style="margin-top:8px;background:#F3F4F6;border:none;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer">지우기</button>
+    </div>
+    <div style="background:#FEF3C7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400E;line-height:1.7">⚠️ 본 차용증은 당사자 간 약정 내용을 기록한 문서로, 법적 효력은 작성 방식 및 상황에 따라 달라질 수 있습니다. 완전한 법적 보호를 원하시는 경우 공증사무소 방문을 권장드립니다.</div>
+    <button onclick="generateIOU()" style="width:100%;background:var(--blue);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:'Pretendard',-apple-system,sans-serif">📄 차용증 이미지 저장</button>
+    <button onclick="createLoanAccount()" id="iouLoanBtn" style="width:100%;background:var(--green);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:24px;font-family:'Pretendard',-apple-system,sans-serif">🏦 대출 통장 만들기</button>
+  </div>
+</div>
+
+<!-- 차용증 캡처용 숨김 영역 -->
+<div id="iouPreview" style="position:fixed;left:-9999px;top:0;width:480px;background:white;font-family:'Pretendard',-apple-system,sans-serif"></div>
 
 <div class="modal-overlay" id="createGroupModal">
   <div class="modal">
@@ -1102,6 +1201,7 @@ async function loadGroupSelect(){
   document.getElementById('loginWrap').style.display='none';
   document.getElementById('groupWrap').style.display='flex';
   document.getElementById('groupSub').textContent=`${currentUser.nickname}님, 반가워요!`;
+  checkTodayReminders();
   const{data:gms}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
   const list=document.getElementById('groupList');
   if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
@@ -2116,7 +2216,7 @@ async function regenInviteCode(){
     });
   }
   if(currentGroup.type==='gye'){
-    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
+    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null).neq('type','loan');
     (gyeAccs||[]).forEach(function(a){
       html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
         +'<div class="acc-name">📒 '+a.name+'</div>'
@@ -2125,6 +2225,16 @@ async function regenInviteCode(){
         +'</div>';
     });
   }
+  // 대출 통장
+  const{data:loanAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('type','loan');
+  (loanAccs||[]).forEach(function(a){
+    const balClass=a.balance<0?'acc-balance loan':'acc-balance';
+    html+='<div class="account-card" style="border-left-color:#DC2626" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+      +'<div class="acc-name">💸 '+a.name+'</div>'
+      +'<div class="'+balClass+'">'+fmt(a.balance)+'</div>'
+      +'<div class="acc-meta">연 '+a.interest_rate+'% 차용</div>'
+      +'</div>';
+  });
   list.innerHTML=html||'<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';
 }
 async function loadAllTransactions(){
@@ -2477,6 +2587,185 @@ function switchTab(tab){
     historyBackBtn.style.display='flex';
     loadAllTransactions();
   }
+}
+
+// ── MY 메뉴 ──
+function openMyMenu(){document.getElementById('myMenuSheet').style.display='block'}
+function closeMyMenu(){document.getElementById('myMenuSheet').style.display='none'}
+
+// ── 알림 관리 ──
+function openReminderScreen(){
+  document.getElementById('reminderScreen').style.display='block';
+  loadReminders();
+}
+function closeReminderScreen(){document.getElementById('reminderScreen').style.display='none'}
+function openReminderAdd(){
+  document.getElementById('remTitle').value='';
+  document.getElementById('remAmount').value='';
+  document.getElementById('remDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('remRepeat').value='none';
+  document.querySelectorAll('#remRepeatSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val==='none')});
+  showModal('reminderAddModal');
+}
+async function submitReminder(){
+  const title=document.getElementById('remTitle').value.trim();
+  const amount=document.getElementById('remAmount').value||null;
+  const date=document.getElementById('remDate').value;
+  const repeat=document.getElementById('remRepeat').value;
+  if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
+  await db.from('reminders').insert({user_id:currentUser.id,title,amount:amount?parseInt(amount):null,remind_date:date,repeat_type:repeat});
+  showToast('알림이 추가됐어요!');closeModal('reminderAddModal');loadReminders();
+}
+async function loadReminders(){
+  const{data}=await db.from('reminders').select('*').eq('user_id',currentUser.id).order('remind_date');
+  const list=document.getElementById('reminderList');
+  if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:var(--text-sub);padding:40px 0;font-size:14px">등록된 알림이 없어요</div>';return}
+  const repeatLabel={none:'',monthly:'매월 반복',yearly:'매년 반복'};
+  list.innerHTML=data.map(function(r){
+    return'<div style="background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px">'
+      +'<div style="font-size:24px">🔔</div>'
+      +'<div style="flex:1">'
+        +'<div style="font-size:15px;font-weight:700">'+r.title+'</div>'
+        +'<div style="font-size:13px;color:var(--text-sub);margin-top:3px">'+r.remind_date+(r.amount?'  '+fmt(r.amount)+'원':'')+(r.repeat_type!=='none'?'  '+repeatLabel[r.repeat_type]:'')+'</div>'
+      +'</div>'
+      +'<button onclick="deleteReminder('+r.id+')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700;flex-shrink:0">삭제</button>'
+      +'</div>';
+  }).join('');
+}
+async function deleteReminder(id){
+  if(!confirm('알림을 삭제할까요?'))return;
+  await db.from('reminders').delete().eq('id',id);
+  loadReminders();
+}
+async function checkTodayReminders(){
+  if(!currentUser)return;
+  const today=new Date().toISOString().split('T')[0];
+  const{data}=await db.from('reminders').select('*').eq('user_id',currentUser.id);
+  if(!data||!data.length)return;
+  const todayRems=data.filter(function(r){
+    if(r.remind_date===today)return true;
+    if(r.repeat_type==='monthly'&&r.remind_date.slice(8)===today.slice(8))return true;
+    if(r.repeat_type==='yearly'&&r.remind_date.slice(5)===today.slice(5))return true;
+    return false;
+  });
+  if(!todayRems.length)return;
+  setTimeout(function(){
+    showToast('🔔 오늘 알림 '+todayRems.length+'개: '+todayRems[0].title+(todayRems.length>1?' 외 '+(todayRems.length-1)+'건':''));
+  },1500);
+}
+
+// ── 차용증 ──
+let sigDrawing=false;
+function openIOU(){
+  document.getElementById('iouScreen').style.display='block';
+  document.getElementById('iouCreditorName').value='';
+  document.getElementById('iouCreditorPhone').value='';
+  document.getElementById('iouCreditorAddr').value='';
+  document.getElementById('iouDebtorName').value='';
+  document.getElementById('iouDebtorPhone').value='';
+  document.getElementById('iouDebtorAddr').value='';
+  document.getElementById('iouAmount').value='';
+  document.getElementById('iouRate').value='0';
+  document.getElementById('iouRepayDate').value='';
+  document.getElementById('iouMonthlyInterest').textContent='';
+  document.getElementById('iouLoanBtn').style.display=currentGroup?'block':'none';
+  setTimeout(initSignatureCanvas,100);
+}
+function closeIOU(){document.getElementById('iouScreen').style.display='none'}
+function calcMonthlyInterest(){
+  const amt=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const el=document.getElementById('iouMonthlyInterest');
+  el.textContent=(amt>0&&rate>0)?'월 이자: '+fmt(Math.round(amt*rate/100/12))+'원':'';
+}
+function initSignatureCanvas(){
+  const canvas=document.getElementById('signatureCanvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#1A1A2E';ctx.lineWidth=2;ctx.lineCap='round';
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:(cx-rect.left)*sx,y:(cy-rect.top)*sy};
+  }
+  canvas.onmousedown=canvas.ontouchstart=function(e){e.preventDefault();sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
+  canvas.onmousemove=canvas.ontouchmove=function(e){if(!sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke()};
+  canvas.onmouseup=canvas.onmouseleave=canvas.ontouchend=function(){sigDrawing=false};
+}
+function clearSignature(){const c=document.getElementById('signatureCanvas');c.getContext('2d').clearRect(0,0,c.width,c.height)}
+async function generateIOU(){
+  const credName=document.getElementById('iouCreditorName').value.trim();
+  const credPhone=document.getElementById('iouCreditorPhone').value.trim();
+  const credAddr=document.getElementById('iouCreditorAddr').value.trim();
+  const debtName=document.getElementById('iouDebtorName').value.trim();
+  const debtPhone=document.getElementById('iouDebtorPhone').value.trim();
+  const debtAddr=document.getElementById('iouDebtorAddr').value.trim();
+  const amount=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const repayDate=document.getElementById('iouRepayDate').value;
+  if(!credName||!debtName||!amount){showToast('채권자·채무자 이름과 금액을 입력해주세요');return}
+  const today=new Date();
+  const todayStr=today.getFullYear()+'년 '+(today.getMonth()+1)+'월 '+today.getDate()+'일';
+  const monthly=rate>0?Math.round(amount*rate/100/12):0;
+  const sigImg=document.getElementById('signatureCanvas').toDataURL('image/png');
+  const row=function(label,val){return'<tr style="border-bottom:1px solid #E5E7EB"><td style="padding:10px 8px;width:80px;color:#6B7280;font-weight:700;white-space:nowrap">'+label+'</td><td style="padding:10px 8px">'+val+'</td></tr>'};
+  const preview=document.getElementById('iouPreview');
+  preview.innerHTML='<div style="padding:32px;background:white;font-family:Arial,sans-serif">'
+    +'<h1 style="text-align:center;font-size:26px;font-weight:900;letter-spacing:8px;margin-bottom:28px;border-bottom:3px solid #1A1A2E;padding-bottom:14px">차 용 증</h1>'
+    +'<p style="font-size:14px;line-height:2;margin-bottom:20px">본인(채무자)은 아래와 같이 금전을 차용함을 확인합니다.</p>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px">'
+      +row('채권자',credName+(credPhone?' / '+credPhone:'')+(credAddr?' / '+credAddr:''))
+      +row('채무자',debtName+(debtPhone?' / '+debtPhone:'')+(debtAddr?' / '+debtAddr:''))
+      +row('차용금액','<strong style="font-size:16px">'+fmt(amount)+'원</strong>')
+      +row('이자율','연 '+rate+'%'+(monthly>0?' (월 '+fmt(monthly)+'원)':''))
+      +row('상환일',repayDate||'미정')
+    +'</table>'
+    +'<div style="margin-top:20px;margin-bottom:6px;font-size:14px;font-weight:700">채무자 서명</div>'
+    +'<div style="border:1px solid #E5E7EB;border-radius:8px;padding:8px;margin-bottom:20px;height:90px;display:flex;align-items:center">'
+      +'<img src="'+sigImg+'" style="width:100%;height:80px;object-fit:contain">'
+    +'</div>'
+    +'<p style="text-align:right;font-size:14px;margin-bottom:20px">작성일: '+todayStr+'</p>'
+    +'<p style="font-size:11px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:10px;line-height:1.7">본 차용증은 당사자 간 약정 내용을 기록한 문서로, 법적 효력은 작성 방식 및 상황에 따라 달라질 수 있습니다. 완전한 법적 보호를 원하시는 경우 공증사무소 방문을 권장드립니다.</p>'
+    +'</div>';
+  preview.style.left='0';preview.style.zIndex='-1';
+  showToast('이미지 생성 중...');
+  try{
+    const canvas=await html2canvas(preview,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+    preview.style.left='-9999px';
+    const link=document.createElement('a');
+    link.download='차용증_'+debtName+'_'+todayStr+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    showToast('차용증이 저장됐어요!');
+  }catch(e){
+    preview.style.left='-9999px';
+    showToast('저장 실패. 다시 시도해주세요.');
+    console.error(e);
+  }
+}
+async function createLoanAccount(){
+  if(!currentGroup){showToast('먼저 그룹을 선택해주세요');return}
+  const debtName=document.getElementById('iouDebtorName').value.trim();
+  const amount=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const repayDate=document.getElementById('iouRepayDate').value;
+  if(!debtName||!amount){showToast('채무자 이름과 금액을 입력해주세요');return}
+  if(!confirm(debtName+' 차용 통장을 만들까요?\n초기 잔액: -'+fmt(amount)+'원'))return;
+  const{data:acc}=await db.from('accounts').insert({
+    group_id:currentGroup.id,user_id:null,name:debtName+' 차용',type:'loan',
+    interest_rate:rate,interest_method:'simple',balance:-amount,
+    open_date:new Date().toISOString().split('T')[0]
+  }).select().single();
+  if(acc){
+    await db.from('transactions').insert({
+      account_id:acc.id,type:'withdraw',amount:amount,balance_after:-amount,note:'차용 원금 - '+debtName+(repayDate?' (상환일: '+repayDate+')':'')
+    });
+  }
+  showToast('대출 통장이 만들어졌어요!');
+  closeIOU();
 }
 </script>
 
