@@ -2530,11 +2530,14 @@ function showDayDetail(day){
   async function loadRecentActivity(containerId){
   const container=document.getElementById(containerId);
   if(!container)return;
-  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
+  const groupId=currentGroup.id;
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',groupId);
+  if(currentGroup.id!==groupId)return;
   const accIds=(accs||[]).map(a=>a.id);
   let items=[];
   if(accIds.length){
     const{data:txs}=await db.from('transactions').select('*').in('account_id',accIds).order('created_at',{ascending:false}).limit(5);
+    if(currentGroup.id!==groupId)return;
     (txs||[]).forEach(function(tx){
       const isPlus=['deposit','interest','star_convert'].includes(tx.type);
       const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
@@ -2542,7 +2545,8 @@ function showDayDetail(day){
       items.push({time:new Date(tx.created_at),html:'<div class="tx-item"><div class="tx-icon">'+icon+'</div><div class="tx-info"><div class="tx-note">'+(tx.note||label)+'</div><div class="tx-date">'+fmtDate(tx.created_at)+'</div></div><div class="tx-right"><div class="tx-amt '+(isPlus?'plus':'minus')+'">'+fmt(tx.amount)+'</div></div></div>'});
     });
   }
-  const{data:notices}=await db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false}).limit(3);
+  const{data:notices}=await db.from('notices').select('*').eq('group_id',groupId).order('created_at',{ascending:false}).limit(3);
+  if(currentGroup.id!==groupId)return;
   (notices||[]).forEach(function(n){
     items.push({time:new Date(n.created_at),html:'<div class="tx-item"><div class="tx-icon">🔔</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
   });
