@@ -541,15 +541,19 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div id="noticeList"></div>
   </div>
 
-  <!-- 기타 -->
+  <!-- 기타 작업 -->
 
   <div class="screen" id="etcScreen">
-    <div class="sec-title">
-      기타
-      <button class="add-btn" id="etcAddBtn" onclick="openAddLink()" style="display:none">+</button>
+    <div class="sec-title">기타 작업</div>
+    <div style="display:flex;flex-direction:column;gap:10px">
+      <button onclick="openIOU()" style="display:flex;align-items:center;gap:14px;background:white;border:none;border-radius:16px;padding:16px;box-shadow:var(--shadow);cursor:pointer;width:100%;text-align:left;font-family:'Pretendard',-apple-system,sans-serif">
+        <span style="font-size:28px">📄</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">차용증 작성</div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:2px">금전 거래 내용을 기록하고 이미지로 저장</div>
+        </div>
+      </button>
     </div>
-    <div id="globalLinkList"></div>
-    <div id="linkList"></div>
   </div>
 
   <!-- FAB Refresh -->
@@ -573,7 +577,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="tab-badge" id="noticeBadge"></div>
     </button>
     <button class="tab-btn" id="tab-etc" onclick="switchTab('etc')">
-      <span class="ti-text">···</span><span style="font-size:10px">기타</span>
+      <span class="ti">🛠️</span><span style="font-size:10px">기타</span>
     </button>
   </div>
 </div>
@@ -636,7 +640,6 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:4px">MY 메뉴</div>
     <button class="my-menu-btn" onclick="closeMyMenu();openMyInfo()"><span style="font-size:20px">👤</span> 개인정보 수정</button>
     <button class="my-menu-btn" onclick="closeMyMenu();openReminderScreen()"><span style="font-size:20px">🔔</span> 알림 관리</button>
-    <button class="my-menu-btn" onclick="closeMyMenu();openIOU()"><span style="font-size:20px">📄</span> 차용증 작성</button>
   </div>
 </div>
 
@@ -1282,11 +1285,11 @@ async function selectGroup(groupId,role){
   if(role==='admin'){
     document.getElementById('tab-admin').style.display='flex';
     document.getElementById('noticeAddBtn').style.display='flex';
-    document.getElementById('etcAddBtn').style.display='flex';
+    // etcAddBtn removed
   } else {
     document.getElementById('tab-admin').style.display='none';
     document.getElementById('noticeAddBtn').style.display='flex';
-    document.getElementById('etcAddBtn').style.display='none';
+    // etcAddBtn removed
   }
   await loadHome();switchTab('home');
 }
@@ -2129,7 +2132,7 @@ async function delegateRole(userId){
   currentGM.role='member';
   document.getElementById('tab-admin').style.display='none';
   document.getElementById('noticeAddBtn').style.display='none';
-  document.getElementById('etcAddBtn').style.display='none';
+  // etcAddBtn removed
   switchTab('home');await loadHome();
 }
 async function confirmDeleteGroup(groupId){
