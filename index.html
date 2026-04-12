@@ -716,6 +716,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="ig"><label>금액 (원)</label><input type="number" id="iouAmount" placeholder="1000000" oninput="calcMonthlyInterest()"></div>
       <div class="ig"><label>연 이자율 (%)</label><input type="number" id="iouRate" value="0" step="0.1" oninput="calcMonthlyInterest()"></div>
       <div id="iouMonthlyInterest" style="font-size:13px;color:var(--text-sub);margin-top:-8px;margin-bottom:12px;padding-left:2px"></div>
+      <div class="ig"><label>차용일</label><input type="date" id="iouLoanDate" style="width:100%"></div>
       <div class="ig"><label>상환일</label><input type="date" id="iouRepayDate" style="width:100%"></div>
     </div>
     <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
@@ -2732,6 +2733,7 @@ function openIOU(){
   document.getElementById('iouDebtorAddr').value='';
   document.getElementById('iouAmount').value='';
   document.getElementById('iouRate').value='0';
+  document.getElementById('iouLoanDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('iouRepayDate').value='';
   document.getElementById('iouMonthlyInterest').textContent='';
   document.getElementById('iouLoanBtn').style.display=currentGroup?'block':'none';
@@ -2771,6 +2773,7 @@ async function generateIOU(){
   const debtAddr=document.getElementById('iouDebtorAddr').value.trim();
   const amount=parseInt(document.getElementById('iouAmount').value)||0;
   const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const loanDate=document.getElementById('iouLoanDate').value;
   const repayDate=document.getElementById('iouRepayDate').value;
   if(!credName||!debtName||!amount){showToast('채권자·채무자 이름과 금액을 입력해주세요');return}
   const today=new Date();
@@ -2786,6 +2789,7 @@ async function generateIOU(){
       +row('채권자',credName+(credPhone?' / '+credPhone:'')+(credAddr?' / '+credAddr:''))
       +row('채무자',debtName+(debtPhone?' / '+debtPhone:'')+(debtAddr?' / '+debtAddr:''))
       +row('차용금액','<strong style="font-size:16px">'+fmt(amount)+'원</strong>')
+      +row('차용일',loanDate||todayStr)
       +row('이자율','연 '+rate+'%'+(monthly>0?' (월 '+fmt(monthly)+'원)':''))
       +row('상환일',repayDate||'미정')
     +'</table>'
@@ -2817,13 +2821,14 @@ async function createLoanAccount(){
   const debtName=document.getElementById('iouDebtorName').value.trim();
   const amount=parseInt(document.getElementById('iouAmount').value)||0;
   const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const loanDate=document.getElementById('iouLoanDate').value;
   const repayDate=document.getElementById('iouRepayDate').value;
   if(!debtName||!amount){showToast('채무자 이름과 금액을 입력해주세요');return}
   if(!confirm(debtName+' 차용 통장을 만들까요?\n초기 잔액: -'+fmt(amount)+'원'))return;
   const{data:acc}=await db.from('accounts').insert({
     group_id:currentGroup.id,user_id:null,name:debtName+' 차용',type:'loan',
     interest_rate:rate,interest_method:'simple',balance:-amount,
-    open_date:new Date().toISOString().split('T')[0]
+    open_date:loanDate||new Date().toISOString().split('T')[0]
   }).select().single();
   if(acc){
     await db.from('transactions').insert({
