@@ -666,6 +666,23 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
       <input type="hidden" id="remRepeat" value="none">
     </div>
+    <div class="ig">
+      <label>알림 시간 (복수 선택 가능)</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remPrevNight" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌙 전날 밤 10시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remMorning" style="width:18px;height:18px;accent-color:var(--blue)">
+          ☀️ 당일 아침 9시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remAfternoon" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌤 당일 오후 1시
+        </label>
+      </div>
+    </div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('reminderAddModal')">취소</button>
       <button class="mbtn mbtn-primary" onclick="submitReminder()">저장</button>
@@ -2605,6 +2622,9 @@ function openReminderAdd(){
   document.getElementById('remDate').value=new Date().toISOString().split('T')[0];
   document.getElementById('remRepeat').value='none';
   document.querySelectorAll('#remRepeatSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val==='none')});
+  document.getElementById('remPrevNight').checked=false;
+  document.getElementById('remMorning').checked=true;
+  document.getElementById('remAfternoon').checked=false;
   showModal('reminderAddModal');
 }
 async function submitReminder(){
@@ -2612,8 +2632,19 @@ async function submitReminder(){
   const amount=document.getElementById('remAmount').value||null;
   const date=document.getElementById('remDate').value;
   const repeat=document.getElementById('remRepeat').value;
+  const prevNight=document.getElementById('remPrevNight').checked;
+  const morning=document.getElementById('remMorning').checked;
+  const afternoon=document.getElementById('remAfternoon').checked;
   if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
-  await db.from('reminders').insert({user_id:currentUser.id,title,amount:amount?parseInt(amount):null,remind_date:date,repeat_type:repeat});
+  if(!prevNight&&!morning&&!afternoon){showToast('알림 시간을 하나 이상 선택해주세요');return}
+  await db.from('reminders').insert({
+    user_id:currentUser.id,title,
+    amount:amount?parseInt(amount):null,
+    remind_date:date,repeat_type:repeat,
+    notify_prev_night:prevNight,
+    notify_morning:morning,
+    notify_afternoon:afternoon
+  });
   showToast('알림이 추가됐어요!');closeModal('reminderAddModal');loadReminders();
 }
 async function loadReminders(){
@@ -2622,11 +2653,16 @@ async function loadReminders(){
   if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:var(--text-sub);padding:40px 0;font-size:14px">등록된 알림이 없어요</div>';return}
   const repeatLabel={none:'',monthly:'매월 반복',yearly:'매년 반복'};
   list.innerHTML=data.map(function(r){
+    const times=[];
+    if(r.notify_prev_night)times.push('🌙전날 10시');
+    if(r.notify_morning)times.push('☀️당일 9시');
+    if(r.notify_afternoon)times.push('🌤오후 1시');
     return'<div style="background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px">'
       +'<div style="font-size:24px">🔔</div>'
       +'<div style="flex:1">'
         +'<div style="font-size:15px;font-weight:700">'+r.title+'</div>'
         +'<div style="font-size:13px;color:var(--text-sub);margin-top:3px">'+r.remind_date+(r.amount?'  '+fmt(r.amount)+'원':'')+(r.repeat_type!=='none'?'  '+repeatLabel[r.repeat_type]:'')+'</div>'
+        +(times.length?'<div style="font-size:12px;color:var(--blue);margin-top:3px">'+times.join('  ')+'</div>':'')
       +'</div>'
       +'<button onclick="deleteReminder('+r.id+')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700;flex-shrink:0">삭제</button>'
       +'</div>';
