@@ -8,6 +8,8 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <style>
 :root{
   --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
@@ -1048,6 +1050,33 @@ const SB_KEY='sb_publishable_3B1-IKzYNazYswN91dtHsg_16Mb6lKY';
 const{createClient}=supabase;
 const db=createClient(SB_URL,SB_KEY);
 
+// Firebase 초기화
+firebase.initializeApp({
+  apiKey:"AIzaSyDyv9Cy7GAUlY78E7P0_sEINjYXlxsoXx4",
+  authDomain:"pocketbank-da202.firebaseapp.com",
+  projectId:"pocketbank-da202",
+  storageBucket:"pocketbank-da202.firebasestorage.app",
+  messagingSenderId:"290510794044",
+  appId:"1:290510794044:web:f3c2d4dba29ab58bdc8239"
+});
+
+async function initFCM(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+  try{
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')return;
+    const reg=await navigator.serviceWorker.register('/pocketbank/firebase-messaging-sw.js');
+    const messaging=firebase.messaging();
+    const token=await messaging.getToken({
+      vapidKey:'BK0Xq6wDT5r77xLF22KGt02TcRePPC_wkbZEeBcA-raIdIYRKEQWEP_kwPE0MgkM3CJ58EcXD1F0kQ2ULEWzu68',
+      serviceWorkerRegistration:reg
+    });
+    if(token&&currentUser){
+      await db.from('device_tokens').upsert({user_id:currentUser.id,token},{onConflict:'user_id,token'});
+    }
+  }catch(e){console.warn('FCM 초기화 실패:',e)}
+}
+
 let currentUser=null,currentGroup=null,currentGM=null;
 let detailMember=null,detailAccount=null;
 let txAction=null,txAccountId=null;
@@ -1170,6 +1199,7 @@ async function doLogin(){
   if(document.getElementById('saveNick').checked)localStorage.setItem('pb_uid',nick);
   else localStorage.removeItem('pb_uid');
   currentUser=user;
+  initFCM();
   if(isLegacy){
     document.getElementById('setUserIdInput').value='';
     showModal('setUserIdModal');
