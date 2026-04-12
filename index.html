@@ -545,6 +545,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
   <div class="screen" id="etcScreen">
     <div id="globalLinkList"></div>
+    <div id="iouEtcSection">
     <div class="sec-title" style="margin-top:18px">기타 작업</div>
     <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
       <button onclick="openIOU()" style="display:flex;align-items:center;gap:14px;background:white;border:none;border-radius:16px;padding:16px;box-shadow:var(--shadow);cursor:pointer;width:100%;text-align:left;font-family:'Pretendard',-apple-system,sans-serif">
@@ -554,6 +555,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
           <div style="font-size:12px;color:var(--text-sub);margin-top:2px">금전 거래 내용을 기록하고 이미지로 저장</div>
         </div>
       </button>
+    </div>
     </div>
   </div>
 
@@ -2622,6 +2624,8 @@ function switchTab(tab){
     showScreen('noticeScreen');loadNotices();
   } else if(tab==='etc'){
     showScreen('etcScreen');loadLinks();
+    const iouSection=document.getElementById('iouEtcSection');
+    if(iouSection) iouSection.style.display=currentGroup&&currentGroup.type==='family'?'none':'block';
   } else if(tab==='history'){
     showScreen('historyScreen');
     historyBackBtn.style.display='flex';
