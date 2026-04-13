@@ -1123,6 +1123,7 @@ const SVG_DEPOSIT='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="1
 const SVG_WITHDRAW='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#F44336"/><path d="M10,18h4v-6h3.5l-5.5-7-5.5,7H10z" fill="white"/></svg>';
 const SVG_NOTICE='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#FFC107"/><circle cx="12" cy="6" r="1.3" fill="white"/><path d="M7,15.5L7,11Q7,7.5,12,7.5Q17,7.5,17,11L17,15.5Z" fill="white"/><rect x="5.5" y="15" width="13" height="2.5" rx="1" fill="white"/><ellipse cx="12" cy="19" rx="2" ry="1.5" fill="white"/></svg>';
 const SVG_GLOBAL='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#2196F3"/><path d="M5.5,10L5.5,14L9,14L14,17.5L14,6.5L9,10Z" fill="white"/><circle cx="16" cy="9" r="1.2" fill="white"/><circle cx="17.5" cy="12" r="1.2" fill="white"/><circle cx="16" cy="15" r="1.2" fill="white"/></svg>';
+const SVG_NEW_BADGE='<svg viewBox="0 0 52 24" width="42" height="19" style="vertical-align:middle;margin-right:3px;flex-shrink:0"><path d="M4,1 L40,1 L51,12 L40,23 L4,23 Q1,23 1,20 L1,4 Q1,1 4,1 Z" fill="#F52B47" stroke="#111" stroke-width="1.8"/><text x="21" y="16.5" text-anchor="middle" font-weight="800" font-size="12" fill="white" font-family="Arial,sans-serif">NEW</text></svg>';
 let detailMember=null,detailAccount=null;
 let txAction=null,txAccountId=null;
 let editTxId=null,starsAction=null,rateAccId=null,interestAccId=null,adjustAccId=null;
@@ -2367,11 +2368,11 @@ async function loadNotices(){
     const isRead=readIds.has(n.id);const isLiked=likedIds.has(n.id);
     const lc=likeCnt[n.id]||0;const cc=cmtCnt[n.id]||0;
     const border=!isRead?'border-left:3px solid #D97706':'';
-    const newBadge=!isRead?'🆕 ':'';
+    const newBadge=!isRead?SVG_NEW_BADGE:'';
     const canEdit=isAdmin||n.author_id===currentUser.id;
 const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+(n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
     return'<div class="notice-card" style="'+border+'">'
-      +'<div class="n-title">'+newBadge+n.title+'</div>'
+      +'<div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+newBadge+n.title+'</div>'
       +'<div class="n-content">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
       +'<div class="n-meta"><span>'+fmtDate(n.created_at)+'</span><span>❤️'+lc+' 💬'+cc+'</span></div>'
       +'<div class="n-actions">'
@@ -2440,10 +2441,11 @@ async function loadLinks(){
     gc.innerHTML='<div class="sec-title" style="margin-bottom:8px">공지사항</div>'
       +glinks.map(function(l){
         const delBtn=isManager?'<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>':'';
+        const glNew=(new Date()-new Date(l.created_at))<7*24*60*60*1000?SVG_NEW_BADGE:'';
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;gap:6px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join('');
   } else {
@@ -2455,10 +2457,11 @@ async function loadLinks(){
     gc.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="sec-title" style="margin-bottom:0">공지사항</div><button class="add-btn" onclick="openAddGlobalLink()">+</button></div>'
       +(glinks&&glinks.length?glinks.map(function(l){
         const delBtn='<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>';
+        const glNew=(new Date()-new Date(l.created_at))<7*24*60*60*1000?SVG_NEW_BADGE:'';
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;gap:6px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join(''):'');
   }
