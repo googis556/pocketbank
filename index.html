@@ -2799,7 +2799,13 @@ async function checkTodayReminders(){
   if(!data||!data.length)return;
   const todayRems=data.filter(function(r){
     if(r.remind_date===today)return true;
-    if(r.repeat_type==='monthly'&&r.remind_date.slice(8)===today.slice(8))return true;
+    if(r.repeat_type==='monthly'){
+      const remindDay=parseInt(r.remind_date.slice(8));
+      const todayDay=parseInt(today.slice(8));
+      const lastDay=new Date(parseInt(today.slice(0,4)),parseInt(today.slice(5,7)),0).getDate();
+      if(remindDay===todayDay)return true;
+      if(remindDay>lastDay&&todayDay===lastDay)return true;
+    }
     if(r.repeat_type==='yearly'&&r.remind_date.slice(5)===today.slice(5))return true;
     return false;
   });
