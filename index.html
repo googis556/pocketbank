@@ -1041,7 +1041,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   <div class="modal">
     <h3 id="noticeModalTitle">공지 작성</h3>
     <div class="ig"><label>제목</label><input type="text" id="noticeTitle"></div>
-    <div class="ig"><label>내용</label><textarea id="noticeContent"></textarea></div>
+    <div class="ig"><label>내용</label><textarea id="noticeContent" style="min-height:140px;resize:vertical"></textarea></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('noticeModal')">취소</button>
       <button class="mbtn mbtn-primary" onclick="submitNotice()">저장</button>
@@ -1064,10 +1064,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 <div class="modal-overlay" id="globalLinkModal">
   <div class="modal">
     <h3>공지사항 추가</h3>
-    <div class="ig"><label>아이콘</label><input type="text" id="glIcon" maxlength="2" placeholder="📢"></div>
     <div class="ig"><label>제목</label><input type="text" id="glTitle"></div>
     <div class="ig"><label>URL (선택)</label><input type="url" id="glUrl" placeholder="https://..."></div>
-    <div class="ig"><label>내용 (선택)</label><textarea id="glContent"></textarea></div>
+    <div class="ig"><label>내용 (선택)</label><textarea id="glContent" style="min-height:140px;resize:vertical"></textarea></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('globalLinkModal')">취소</button>
       <button class="mbtn mbtn-primary" onclick="submitGlobalLink()">저장</button>
@@ -2212,14 +2211,13 @@ async function confirmLeaveGroup(groupId){
   await loadGroupSelect();
 }
   function openAddGlobalLink(){
-  document.getElementById('glIcon').value='📢';
   document.getElementById('glTitle').value='';
   document.getElementById('glUrl').value='';
   document.getElementById('glContent').value='';
   showModal('globalLinkModal');
 }
 async function submitGlobalLink(){
-  const icon=document.getElementById('glIcon').value||'📢';
+  const icon='📢';
   const title=document.getElementById('glTitle').value.trim();
   const url=document.getElementById('glUrl').value.trim();
   const content=document.getElementById('glContent').value.trim();
@@ -2435,7 +2433,7 @@ async function checkNoticeBadge(){
 // ── Links ──
 async function loadLinks(){
   // 글로벌 링크 로드
-  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:true});
+  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false});
   const isManager=currentUser.nickname==='manager_1';
   const gc=document.getElementById('globalLinkList');
   if(glinks&&glinks.length){
