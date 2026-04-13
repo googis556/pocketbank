@@ -368,7 +368,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
     <div id="memberViewMembersWrap" style="display:none">
       <div style="display:flex;gap:8px;margin-bottom:10px">
-        <button onclick="toggleMemberListForMember()" style="flex:1;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow)">👥 구성원 보기</button>
+        <button onclick="toggleMemberListForMember()" style="flex:1;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:6px"><svg viewBox="0 0 28 20" width="20" height="14"><circle cx="6" cy="6" r="4.5" fill="#FCCB8F"/><path d="M0,20 Q0,14 6,14 Q12,14 12,20 Z" fill="#E8795C"/><circle cx="14" cy="5" r="5" fill="#FCCB8F"/><path d="M6,20 Q6,13 14,13 Q22,13 22,20 Z" fill="#7CC47A"/><circle cx="22" cy="6" r="4.5" fill="#FCCB8F"/><path d="M16,20 Q16,14 22,14 Q28,14 28,20 Z" fill="#6BAED6"/></svg> 구성원 보기</button>
         <button onclick="openInviteModal()" style="padding:10px 14px;background:var(--blue);color:white;border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow)">구성원 초대</button>
       </div>
       <div id="memberListForMember" style="display:none"></div>
@@ -1392,7 +1392,7 @@ async function loadHome(){
     }
     document.getElementById('adminTotal').textContent=fmt(total);
     if(currentGroup.type==='gye'){
-      document.getElementById('adminSummary').innerHTML='<div style="display:flex;gap:8px"><button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">👥 구성원 보기</button><button onclick="openInviteModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">구성원 초대</button></div><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
+      document.getElementById('adminSummary').innerHTML='<div style="display:flex;gap:8px"><button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 28 20" width="18" height="13"><circle cx="6" cy="6" r="4.5" fill="#FCCB8F"/><path d="M0,20 Q0,14 6,14 Q12,14 12,20 Z" fill="#E8795C"/><circle cx="14" cy="5" r="5" fill="#FCCB8F"/><path d="M6,20 Q6,13 14,13 Q22,13 22,20 Z" fill="#7CC47A"/><circle cx="22" cy="6" r="4.5" fill="#FCCB8F"/><path d="M16,20 Q16,14 22,14 Q28,14 28,20 Z" fill="#6BAED6"/></svg> 구성원 보기</button><button onclick="openInviteModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">구성원 초대</button></div><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
       window._gyeMembers=members;
     } else {
       document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
