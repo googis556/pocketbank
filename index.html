@@ -120,7 +120,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
 /* Tab bar */
 .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:white;display:flex;border-top:1px solid #E5E7EB;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(0,0,0,0.07)}
-.tab-btn{flex:1;padding:10px 0 8px;border:none;background:none;font-size:10px;color:var(--text-sub);cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;transition:color 0.2s}
+.tab-btn{flex:1;padding:12px 0;border:none;background:none;color:var(--text-sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:color 0.2s}
 .tab-btn .ti{font-size:27px;line-height:1}
 .tab-btn .ti-text{font-size:14px;font-weight:700;line-height:1.2;letter-spacing:1px}
 .tab-btn.active{color:var(--blue)}
@@ -578,20 +578,20 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
   <div class="tab-bar" id="tabBar">
     <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
-      <span class="ti">🏠</span><span style="font-size:10px">홈</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polyline points="2,12 12,2 22,12"/><path d="M4,11 L4,21 L9,21 L9,15 L15,15 L15,21 L20,21 L20,11"/></svg>
     </button>
     <button class="tab-btn" id="tab-account" onclick="switchTab('account')">
-      <span class="ti">📒</span><span style="font-size:10px">조회</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter" width="26" height="26"><path d="M5,2 L5,22 L19,22 L19,7 L14,2 Z"/><polyline points="14,2 14,7 19,7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/></svg>
     </button>
     <button class="tab-btn" id="tab-admin" onclick="switchTab('admin')" style="display:none">
-      <span class="ti">⚙️</span><span style="font-size:10px">관리</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter" width="26" height="26"><polygon points="12,2 14.7,5.5 19.1,4.9 18.5,9.3 22,12 18.5,14.7 19.1,19.1 14.7,18.5 12,22 9.3,18.5 4.9,19.1 5.5,14.7 2,12 5.5,9.3 4.9,4.9 9.3,5.5"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
     <button class="tab-btn" id="tab-notice" onclick="switchTab('notice')">
-      <span class="ti">🔔</span><span style="font-size:10px">알림</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M4,17 L4,15 L7,15 L7,10 Q7,4 12,4 Q17,4 17,10 L17,15 L20,15 L20,17 Z"/><path d="M10,17 Q10,20 12,20 Q14,20 14,17"/></svg>
       <div class="tab-badge" id="noticeBadge"></div>
     </button>
     <button class="tab-btn" id="tab-etc" onclick="switchTab('etc')">
-      <span class="ti">🛠️</span><span style="font-size:10px">기타</span>
+      <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><rect x="3" y="10" width="4" height="4"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/></svg>
     </button>
   </div>
 </div>
