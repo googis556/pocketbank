@@ -1394,6 +1394,7 @@ async function loadHome(){
       document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
     }
     // 최근 거래
+    document.getElementById('adminRecentActivity').innerHTML='';
     const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
     const accIds=(accs||[]).map(a=>a.id);
     if(accIds.length){
