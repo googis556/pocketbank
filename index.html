@@ -174,7 +174,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Notice */
 .notice-card{background:white;border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px}
 .n-title{font-size:14px;font-weight:700;margin-bottom:5px}
-.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:8px}
+.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:8px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;cursor:pointer}
+.n-content.expanded{display:block;overflow:visible;-webkit-line-clamp:unset}
 .n-meta{font-size:11px;color:var(--text-sub);display:flex;justify-content:space-between;margin-bottom:7px}
 .n-actions{display:flex;gap:7px;padding-top:7px;border-top:1px solid #F3F4F6;flex-wrap:wrap;align-items:center}
 .like-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
@@ -696,9 +697,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 <!-- 알림 추가 모달 -->
 <div class="modal-overlay" id="reminderAddModal">
   <div class="modal">
-    <h3>알림 추가</h3>
+    <h3 id="reminderModalTitle">알림 추가</h3>
     <div class="ig"><label>제목</label><input type="text" id="remTitle" placeholder="예: 월세 입금, 용돈 지급"></div>
-    <div class="ig"><label>금액 (선택)</label><input type="number" id="remAmount" placeholder="예: 500000"></div>
+    <div class="ig"><label>금액 (선택)</label><input type="text" id="remAmount" placeholder="예: 500,000" oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,',')"></div>
     <div class="ig"><label>날짜</label><input type="date" id="remDate" style="width:100%"></div>
     <div class="ig">
       <label>반복</label>
@@ -773,6 +774,17 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
 <!-- 차용증 캡처용 숨김 영역 -->
 <div id="iouPreview" style="position:fixed;left:-9999px;top:0;width:480px;background:white;font-family:'Pretendard',-apple-system,sans-serif"></div>
+
+<!-- 공지 내용 팝업 -->
+<div class="modal-overlay" id="noticePopupModal">
+  <div class="modal">
+    <h3 id="noticePopupTitle"></h3>
+    <div id="noticePopupContent" style="font-size:14px;color:var(--text);line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin-bottom:16px"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-primary" onclick="closeModal('noticePopupModal')">닫기</button>
+    </div>
+  </div>
+</div>
 
 <div class="modal-overlay" id="createGroupModal">
   <div class="modal">
@@ -1525,11 +1537,14 @@ if(!currentGroup.invite_code){
     const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     const container=document.getElementById('adminContent');
     if(!members||!members.length){container.innerHTML='<div class="empty"><div class="ei">👥</div>구성원을 추가해주세요</div>';return}
-    const cards=await Promise.all(members.map(async m=>{
-      const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
-      const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
-      return{...m,total,accs:accs||[]};
-    }));
+    const{data:allAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id);
+    const accsByUser={};
+    (allAccs||[]).forEach(a=>{if(!accsByUser[a.user_id])accsByUser[a.user_id]=[];accsByUser[a.user_id].push(a);});
+    const cards=members.map(m=>{
+      const accs=accsByUser[m.user_id]||[];
+      const total=accs.reduce((s,a)=>s+a.balance,0);
+      return{...m,total,accs};
+    });
    container.innerHTML=cards.map(function(m){
       const joinDate=m.join_date?'개설 '+m.join_date:'';
       return'<div class="member-card" onclick="openMemberDetail(\''+m.user_id+'\')">'
@@ -1681,7 +1696,7 @@ async function openAccDetail(accId){
   document.getElementById('accDetailTxWrap').style.display='block';
 document.getElementById('accActions').style.display=fromAccount?'none':'flex';
 document.querySelectorAll('#accDetailScreen .act-row').forEach(el=>el.style.display=fromAccount?'none':'flex');
-document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
+document.querySelector('#accDetailScreen .del-btn-full').style.display=fromAccount?'none':'block';
   document.getElementById('calBtn').style.display=fromAccount?'block':'none';
   showScreen('accDetailScreen');
 }
@@ -2374,7 +2389,7 @@ async function loadNotices(){
 const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+(n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
     return'<div class="notice-card" style="'+border+'">'
       +'<div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+newBadge+n.title+'</div>'
-      +'<div class="n-content">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
+      +'<div class="n-content" onclick="this.classList.toggle(\'expanded\')">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
       +'<div class="n-meta"><span>'+fmtDate(n.created_at)+'</span><span>❤️'+lc+' 💬'+cc+'</span></div>'
       +'<div class="n-actions">'
       +'<button class="like-btn'+(isLiked?' liked':'')+'" onclick="toggleLike(\''+n.id+'\','+isLiked+')">❤️ '+lc+'</button>'
@@ -2583,7 +2598,14 @@ function showDayDetail(day){
   const{data:notices}=await db.from('notices').select('*').eq('group_id',groupId).order('created_at',{ascending:false}).limit(3);
   if(currentGroup.id!==groupId)return;
   (notices||[]).forEach(function(n){
-    items.push({time:new Date(n.created_at),html:'<div class="tx-item"><div class="tx-icon">'+SVG_NOTICE+'</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+    const esc=function(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")};
+    items.push({time:new Date(n.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showNoticePopup(\''+esc(n.title)+'\',\''+esc(n.content||'')+'\')"><div class="tx-icon">'+SVG_NOTICE+'</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+  });
+  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false}).limit(3);
+  if(currentGroup.id!==groupId)return;
+  (glinks||[]).forEach(function(g){
+    const esc=function(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")};
+    items.push({time:new Date(g.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showNoticePopup(\''+esc(g.title)+'\',\''+esc(g.content||'')+'\')"><div class="tx-icon">📢</div><div class="tx-info"><div class="tx-note">'+g.title+'</div><div class="tx-date">'+fmtDate(g.created_at)+'</div></div></div>'});
   });
   items.sort(function(a,b){return b.time-a.time});
   items=items.slice(0,7);
@@ -2593,10 +2615,10 @@ function showDayDetail(day){
   const wrap=document.getElementById('memberListForMember');
   if(wrap.style.display==='none'){
     wrap.style.display='block';
-    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).order('role',{ascending:true});
     wrap.innerHTML='<div class="card">'+(gms||[]).map(function(m){
     const av=m.users.photo?'<div class="avatar" style="width:36px;height:36px;cursor:pointer" onclick="openPhotoOverlay(\''+m.users.photo+'\')"><img src="'+m.users.photo+'"></div>':avEl(null,'👦',36);
-return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+m.users.nickname+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span></div>';
+return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+m.users.nickname+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span>'+(m.role==='admin'?'<span style="font-size:11px;color:var(--blue);font-weight:700;margin-left:auto">은행장</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     wrap.style.display='none';
@@ -2640,6 +2662,12 @@ function setupSwipeBack(){
       switchTab('home');
     }
   });
+}
+
+function showNoticePopup(title,content){
+  document.getElementById('noticePopupTitle').textContent=title;
+  document.getElementById('noticePopupContent').innerHTML=(content||'').replace(/\n/g,'<br>');
+  showModal('noticePopupModal');
 }
 
 // ── Tab Cache ──
@@ -2753,6 +2781,8 @@ function openReminderScreen(){
 }
 function closeReminderScreen(){document.getElementById('reminderScreen').style.display='none'}
 function openReminderAdd(){
+  editReminderId=null;
+  document.getElementById('reminderModalTitle').textContent='알림 추가';
   document.getElementById('remTitle').value='';
   document.getElementById('remAmount').value='';
   document.getElementById('remDate').value=new Date().toISOString().split('T')[0];
@@ -2763,9 +2793,11 @@ function openReminderAdd(){
   document.getElementById('remAfternoon').checked=false;
   showModal('reminderAddModal');
 }
+let editReminderId=null;
+const _reminderData={};
 async function submitReminder(){
   const title=document.getElementById('remTitle').value.trim();
-  const amount=document.getElementById('remAmount').value||null;
+  const rawAmount=document.getElementById('remAmount').value.replace(/,/g,'')||null;
   const date=document.getElementById('remDate').value;
   const repeat=document.getElementById('remRepeat').value;
   const prevNight=document.getElementById('remPrevNight').checked;
@@ -2773,18 +2805,43 @@ async function submitReminder(){
   const afternoon=document.getElementById('remAfternoon').checked;
   if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
   if(!prevNight&&!morning&&!afternoon){showToast('알림 시간을 하나 이상 선택해주세요');return}
-  await db.from('reminders').insert({
-    user_id:currentUser.id,title,
-    amount:amount?parseInt(amount):null,
+  const payload={
+    title,
+    amount:rawAmount?parseInt(rawAmount):null,
     remind_date:date,repeat_type:repeat,
     notify_prev_night:prevNight,
     notify_morning:morning,
     notify_afternoon:afternoon
-  });
-  showToast('알림이 추가됐어요!');closeModal('reminderAddModal');loadReminders();
+  };
+  if(editReminderId){
+    await db.from('reminders').update(payload).eq('id',editReminderId);
+    showToast('알림이 수정됐어요!');
+  } else {
+    await db.from('reminders').insert({user_id:currentUser.id,...payload});
+    showToast('알림이 추가됐어요!');
+  }
+  editReminderId=null;
+  closeModal('reminderAddModal');loadReminders();
+}
+function openReminderEdit(id){
+  const r=_reminderData[id];if(!r)return;
+  editReminderId=r.id;
+  document.getElementById('reminderModalTitle').textContent='알림 수정';
+  document.getElementById('remTitle').value=r.title||'';
+  document.getElementById('remAmount').value=r.amount?String(r.amount).replace(/\B(?=(\d{3})+(?!\d))/g,','):'';
+  document.getElementById('remDate').value=r.remind_date||'';
+  const rep=r.repeat_type||'none';
+  document.getElementById('remRepeat').value=rep;
+  document.querySelectorAll('#remRepeatSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val===rep)});
+  document.getElementById('remPrevNight').checked=!!r.notify_prev_night;
+  document.getElementById('remMorning').checked=!!r.notify_morning;
+  document.getElementById('remAfternoon').checked=!!r.notify_afternoon;
+  showModal('reminderAddModal');
 }
 async function loadReminders(){
   const{data}=await db.from('reminders').select('*').eq('user_id',currentUser.id).order('remind_date');
+  Object.keys(_reminderData).forEach(function(k){delete _reminderData[k]});
+  (data||[]).forEach(function(r){_reminderData[r.id]=r});
   const list=document.getElementById('reminderList');
   if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:var(--text-sub);padding:40px 0;font-size:14px">등록된 알림이 없어요</div>';return}
   const repeatLabel={none:'',monthly:'매월 반복',yearly:'매년 반복'};
@@ -2800,7 +2857,10 @@ async function loadReminders(){
         +'<div style="font-size:13px;color:var(--text-sub);margin-top:3px">'+r.remind_date+(r.amount?'  '+fmt(r.amount)+'원':'')+(r.repeat_type!=='none'?'  '+repeatLabel[r.repeat_type]:'')+'</div>'
         +(times.length?'<div style="font-size:12px;color:var(--blue);margin-top:3px">'+times.join('  ')+'</div>':'')
       +'</div>'
-      +'<button onclick="deleteReminder('+r.id+')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700;flex-shrink:0">삭제</button>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
+      +'<button onclick="openReminderEdit('+r.id+')" style="background:#EFF6FF;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--blue);cursor:pointer;font-weight:700">수정</button>'
+      +'<button onclick="deleteReminder('+r.id+')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>'
+      +'</div>'
       +'</div>';
   }).join('');
 }
