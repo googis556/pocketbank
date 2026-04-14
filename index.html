@@ -2577,6 +2577,7 @@ function showDayDetail(day){
     wrap.style.display='none';
   }
 } 
+const _recentPopupData={};
   async function loadRecentActivity(containerId){
   const container=document.getElementById(containerId);
   if(!container)return;
@@ -2598,18 +2599,24 @@ function showDayDetail(day){
   const{data:notices}=await db.from('notices').select('*').eq('group_id',groupId).order('created_at',{ascending:false}).limit(3);
   if(currentGroup.id!==groupId)return;
   (notices||[]).forEach(function(n){
-    const esc=function(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")};
-    items.push({time:new Date(n.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showNoticePopup(\''+esc(n.title)+'\',\''+esc(n.content||'')+'\')"><div class="tx-icon">'+SVG_NOTICE+'</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+    const key='n_'+n.id;
+    _recentPopupData[key]={title:n.title||'',content:n.content||''};
+    items.push({time:new Date(n.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showRecentPopup(\''+key+'\')"><div class="tx-icon">'+SVG_NOTICE+'</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
   });
   const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false}).limit(3);
   if(currentGroup.id!==groupId)return;
   (glinks||[]).forEach(function(g){
-    const esc=function(s){return(s||'').replace(/\\/g,'\\\\').replace(/'/g,"\\'")};
-    items.push({time:new Date(g.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showNoticePopup(\''+esc(g.title)+'\',\''+esc(g.content||'')+'\')"><div class="tx-icon">📢</div><div class="tx-info"><div class="tx-note">'+g.title+'</div><div class="tx-date">'+fmtDate(g.created_at)+'</div></div></div>'});
+    const key='g_'+g.id;
+    _recentPopupData[key]={title:g.title||'',content:g.content||''};
+    items.push({time:new Date(g.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showRecentPopup(\''+key+'\')"><div class="tx-icon">📢</div><div class="tx-info"><div class="tx-note">'+g.title+'</div><div class="tx-date">'+fmtDate(g.created_at)+'</div></div></div>'});
   });
   items.sort(function(a,b){return b.time-a.time});
   items=items.slice(0,7);
   container.innerHTML=items.length?'<div class="tx-list">'+items.map(function(i){return i.html}).join('')+'</div>':'';
+}
+function showRecentPopup(key){
+  const d=_recentPopupData[key];if(!d)return;
+  showNoticePopup(d.title,d.content);
 }
   async function toggleMemberListForMember(){
   const wrap=document.getElementById('memberListForMember');
