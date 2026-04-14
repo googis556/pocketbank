@@ -1337,7 +1337,7 @@ async function selectGroup(groupId,role){
   await loadHome();switchTab('home');
 }
 
-function changeGroup(){currentGroup=null;currentGM=null;document.getElementById('mainApp').style.display='none';loadGroupSelect()}
+function changeGroup(){currentGroup=null;currentGM=null;clearAllTabCache();document.getElementById('mainApp').style.display='none';loadGroupSelect()}
 function logout(){currentUser=null;currentGroup=null;document.getElementById('mainApp').style.display='none';document.getElementById('groupWrap').style.display='none';document.getElementById('loginWrap').style.display='flex';document.getElementById('loginPin').value=''}
 
 function showCreateGroup(){document.getElementById('grpName').value='';document.getElementById('grpPwd').value='';document.getElementById('grpType').value='family';document.querySelectorAll('#grpTypeSeg .seg-btn').forEach((b,i)=>{b.classList.toggle('active',i===0)});showModal('createGroupModal')}
@@ -1852,6 +1852,7 @@ async function submitTx(){
     showToast('🎉 목표 달성!');
   }
   closeModal('txModal');showToast('완료됐어요!');
+  invalidateTabCache('home','account');
   await openAccDetail(txAccountId);await loadHome();
 }
 
@@ -1866,7 +1867,7 @@ async function submitAdjust(){
   const note=document.getElementById('adjustNote').value||'잔액 수정';
   await db.from('transactions').insert({account_id:adjustAccId,type:'adjust',amount:0,balance_after:newBal,note});
   await db.from('accounts').update({balance:newBal}).eq('id',adjustAccId);
-  closeModal('adjustModal');showToast('수정됐어요!');await openAccDetail(adjustAccId);await loadHome();
+  closeModal('adjustModal');showToast('수정됐어요!');invalidateTabCache('home','account');await openAccDetail(adjustAccId);await loadHome();
 }
 
 function openEditTx(txId,type,amount,bal,note,dateStr,e){
@@ -2413,7 +2414,7 @@ async function submitNotice(){
   if(!title){showToast('제목을 입력해주세요');return}
   if(editNoticeId) await db.from('notices').update({title,content,updated_at:new Date()}).eq('id',editNoticeId);
   else await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title,content});
-  closeModal('noticeModal');showToast('저장됐어요!');await loadNotices();
+  closeModal('noticeModal');showToast('저장됐어요!');invalidateTabCache('notice');await loadNotices();
 }
 function confirmDeleteNotice(id){if(!confirm('이 공지를 삭제할까요?'))return;db.from('notices').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadNotices()})}
 async function markAllRead(){
@@ -2641,6 +2642,13 @@ function setupSwipeBack(){
   });
 }
 
+// ── Tab Cache ──
+const tabLastLoaded={};
+const CACHE_TTL=30000;
+function isCacheFresh(tab){return tabLastLoaded[tab]&&(Date.now()-tabLastLoaded[tab]<CACHE_TTL);}
+function invalidateTabCache(...tabs){tabs.forEach(t=>delete tabLastLoaded[t]);}
+function clearAllTabCache(){Object.keys(tabLastLoaded).forEach(k=>delete tabLastLoaded[k]);}
+
 // ── Tab ──
 function switchTab(tab){
   currentTab=tab;
@@ -2653,29 +2661,32 @@ function switchTab(tab){
 
   if(tab==='home'){
     showScreen(isAdmin?'adminHomeScreen':'memberHomeScreen');
-    loadHome();
     historyBackBtn.style.display='none';
+    if(!isCacheFresh('home')){loadHome();tabLastLoaded['home']=Date.now();}
   } else if(tab==='account'){
     if(isAdmin){
       showScreen('adminAccListScreen');
       historyBackBtn.style.display='none';
-      loadAdminAccList();
+      if(!isCacheFresh('account')){loadAdminAccList();tabLastLoaded['account']=Date.now();}
     } else {
       showScreen('myAccScreen');
-      loadMyAccounts();
+      if(!isCacheFresh('account')){loadMyAccounts();tabLastLoaded['account']=Date.now();}
     }
   } else if(tab==='admin'){
-    showScreen('adminScreen');loadAdminScreen();
+    showScreen('adminScreen');
+    if(!isCacheFresh('admin')){loadAdminScreen();tabLastLoaded['admin']=Date.now();}
   } else if(tab==='notice'){
-    showScreen('noticeScreen');loadNotices();
+    showScreen('noticeScreen');
+    if(!isCacheFresh('notice')){loadNotices();tabLastLoaded['notice']=Date.now();}
   } else if(tab==='etc'){
-    showScreen('etcScreen');loadLinks();
+    showScreen('etcScreen');
+    if(!isCacheFresh('etc')){loadLinks();tabLastLoaded['etc']=Date.now();}
     const iouSection=document.getElementById('iouEtcSection');
     if(iouSection) iouSection.style.display=currentGroup&&currentGroup.type==='family'?'none':'block';
   } else if(tab==='history'){
     showScreen('historyScreen');
     historyBackBtn.style.display='flex';
-    loadAllTransactions();
+    if(!isCacheFresh('history')){loadAllTransactions();tabLastLoaded['history']=Date.now();}
   }
 }
 
