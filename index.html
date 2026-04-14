@@ -2461,7 +2461,7 @@ async function loadLinks(){
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" onclick="this.classList.toggle(\'expanded\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join('');
   } else {
@@ -2477,7 +2477,7 @@ async function loadLinks(){
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" onclick="this.classList.toggle(\'expanded\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join(''):'');
   }
