@@ -10,6 +10,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 <style>
 :root{
   --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
@@ -419,6 +420,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="bc-label" id="accDetailName">통장명</div>
       <div style="display:flex;align-items:center;justify-content:space-between">
   <div class="bc-amount" id="accDetailBalance">₩0</div>
+  <button id="xlsBtn" onclick="openExcelExport()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;cursor:pointer;display:none;margin-right:4px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" style="display:block"><rect x="2" y="2" width="20" height="20" rx="3" fill="#1D6F42"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="bold" fill="white" font-family="sans-serif">XLS</text></svg></button>
   <button id="calBtn" onclick="openCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;cursor:pointer;display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="miter" width="20" height="20" style="display:block"><rect x="2" y="4" width="20" height="18"/><line x1="2" y1="9" x2="22" y2="9"/><rect x="6" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="15" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="5.5" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="5.5" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/></svg></button>
 </div>
       <div class="bc-grid" id="accDetailInterest"></div>
@@ -621,6 +623,20 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
   </div>
 </div>
+<!-- 엑셀 다운로드 모달 -->
+<div class="modal-overlay" id="excelModal">
+  <div class="modal">
+    <h3>거래내역 엑셀 다운로드</h3>
+    <div class="ig"><label>시작일</label><input type="date" id="xlsFrom" style="width:100%"></div>
+    <div class="ig"><label>종료일</label><input type="date" id="xlsTo" style="width:100%"></div>
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px">선택한 기간의 거래내역이 .xlsx 파일로 저장됩니다.</div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('excelModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="downloadExcel()">⬇ 내려받기</button>
+    </div>
+  </div>
+</div>
+
   <div class="modal-overlay" id="calModal">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -1698,6 +1714,7 @@ document.getElementById('accActions').style.display=fromAccount?'none':'flex';
 document.querySelectorAll('#accDetailScreen .act-row').forEach(el=>el.style.display=fromAccount?'none':'flex');
 document.querySelector('#accDetailScreen .del-btn-full').style.display=fromAccount?'none':'block';
   document.getElementById('calBtn').style.display=fromAccount?'block':'none';
+  document.getElementById('xlsBtn').style.display=fromAccount?'block':'none';
   showScreen('accDetailScreen');
 }
 
@@ -2496,6 +2513,50 @@ async function submitLink(){
 function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;db.from('links').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadLinks()})}
 
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[];
+function openExcelExport(){
+  const today=new Date();
+  const firstDay=new Date(today.getFullYear(),today.getMonth(),1).toISOString().split('T')[0];
+  const todayStr=today.toISOString().split('T')[0];
+  document.getElementById('xlsFrom').value=firstDay;
+  document.getElementById('xlsTo').value=todayStr;
+  showModal('excelModal');
+}
+async function downloadExcel(){
+  const from=document.getElementById('xlsFrom').value;
+  const to=document.getElementById('xlsTo').value;
+  if(!from||!to){showToast('기간을 입력해주세요');return}
+  if(from>to){showToast('시작일이 종료일보다 늦을 수 없어요');return}
+  showToast('준비 중...');
+  const fromISO=from+'T00:00:00+09:00';
+  const toISO=to+'T23:59:59+09:00';
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',detailAccount.id).gte('created_at',fromISO).lte('created_at',toISO).order('created_at',{ascending:true});
+  if(!txs||!txs.length){showToast('해당 기간에 거래내역이 없어요');return}
+  const typeLabel={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'};
+  const rows=txs.map(function(tx){
+    const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);
+    const dateStr=kst.getFullYear()+'-'+String(kst.getMonth()+1).padStart(2,'0')+'-'+String(kst.getDate()).padStart(2,'0');
+    const timeStr=String(kst.getHours()).padStart(2,'0')+':'+String(kst.getMinutes()).padStart(2,'0');
+    const isPlus=['deposit','interest'].includes(tx.type);
+    const isAdj=tx.type==='adjust';
+    return{
+      '날짜':dateStr,
+      '시간':timeStr,
+      '구분':typeLabel[tx.type]||tx.type,
+      '입금':isPlus?tx.amount:'',
+      '출금':(!isPlus&&!isAdj)?tx.amount:'',
+      '잔액':tx.balance_after,
+      '메모':tx.note||''
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const colWidths=[{wch:12},{wch:8},{wch:10},{wch:14},{wch:14},{wch:14},{wch:24}];
+  ws['!cols']=colWidths;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'거래내역');
+  const accName=(detailAccount.name||'통장').replace(/[\/\\:*?"<>|]/g,'_');
+  XLSX.writeFile(wb,accName+'_'+from+'_'+to+'.xlsx');
+  closeModal('excelModal');
+}
 async function openCalendar(){
   calAccId=detailAccount.id;
   calYear=new Date().getFullYear();calMonth=new Date().getMonth();
