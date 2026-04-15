@@ -604,7 +604,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   <div class="modal">
     <h3>개인정보 수정</h3>
     <div class="ig"><label>아이디</label><input type="text" id="myInfoUserId" readonly style="background:#F3F4F6"></div>
-    <div class="ig"><label>별칭 변경</label><input type="text" id="myInfoNick" placeholder="새 별칭 (비우면 변경 안함)"></div>
+    <div class="ig"><label>이 그룹에서의 별칭</label><input type="text" id="myInfoGroupAlias" placeholder="이 그룹에서만 사용할 이름"></div>
+    <div class="ig"><label>전체 별칭 변경</label><input type="text" id="myInfoNick" placeholder="모든 그룹 공통 (비우면 변경 안함)"></div>
     <div class="ig">
   <label>로그인 방식</label>
   <div class="segment" id="loginTypeSeg">
@@ -1165,6 +1166,8 @@ let gyeAccId=null; // for 계모임 통장 구성원 추가
 // ── Utils ──
 function fmt(n){return'₩'+Number(Math.round(n)).toLocaleString('ko-KR')}
 function fmtDate(d){const dt=new Date(d);const kst=new Date(dt.getTime()+9*60*60*1000);return`${kst.getFullYear()}/${kst.getMonth()+1}/${kst.getDate()} ${kst.getHours()}:${String(kst.getMinutes()).padStart(2,'0')}`}
+// 그룹별 별칭 우선, 없으면 닉네임 반환
+function gname(m){return(m&&(m.group_alias||(m.users&&m.users.nickname)||m.nickname))||''}
 function localDT(d){const dt=new Date(d);const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`}
 function todayStr(){const dt=new Date();const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
@@ -1409,7 +1412,7 @@ async function loadHome(){
       const{data:allAccs}=await db.from('accounts').select('balance,user_id').eq('group_id',currentGroup.id);
       members.forEach(function(m){
         const bal=(allAccs||[]).filter(a=>a.user_id===m.user_id).reduce((s,a)=>s+a.balance,0);
-        total+=bal;summaries.push(m.users.nickname+': '+fmt(bal));
+        total+=bal;summaries.push(gname(m)+': '+fmt(bal));
       });
     }
     // 계모임은 공용 통장 잔액도 합산
@@ -1566,12 +1569,12 @@ if(!currentGroup.invite_code){
       return'<div class="member-card" onclick="openMemberDetail(\''+m.user_id+'\')">'
         +avEl(m.users.photo,'👦',42)
         +'<div class="mc-info">'
-        +'<div class="mc-name">'+m.users.nickname+' <span style="font-size:11px;color:#9CA3AF;font-weight:400">@'+(m.users.user_id||'')+'</span> <span style="font-size:11px;color:#6B7280;font-weight:400">'+joinDate+'</span></div>'
+        +'<div class="mc-name">'+gname(m)+' <span style="font-size:11px;color:#9CA3AF;font-weight:400">@'+(m.users.user_id||'')+'</span> <span style="font-size:11px;color:#6B7280;font-weight:400">'+joinDate+'</span></div>'
         +'<div class="mc-balance">'+fmt(m.total)+'</div>'
         +'<div class="mc-meta">통장 '+m.accs.length+'개</div>'
         +'</div>'
         +'<div onclick="event.stopPropagation()">'
-        +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+        +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+gname(m)+'\')">권한위임</button>'
         +'</div></div>';
     }).join('');
     const inviteUrl='https://googis556.github.io/pocketbank?code='+currentGroup.invite_code;
@@ -1723,7 +1726,7 @@ async function loadGyeAccMembers(accId){
   const sortType=window.gyeSortType||'join';
   const list=document.getElementById('gyeAccMemberList');
   if(!gms||!gms.length){list.innerHTML='<div style="font-size:13px;color:#6B7280;padding:8px 0">구성원이 없어요</div>';renderPaymentTable([]);return}
-  if(sortType==='name') gms.sort((a,b)=>a.users.nickname.localeCompare(b.users.nickname));
+  if(sortType==='name') gms.sort((a,b)=>gname(a).localeCompare(gname(b)));
   // 구성원별 총 입금액 계산
   const{data:txs}=await db.from('transactions').select('*').eq('account_id',accId).eq('type','deposit');
   const memberTotals={};
@@ -1733,10 +1736,10 @@ async function loadGyeAccMembers(accId){
   list.innerHTML=gms.map(function(m){
     const total=memberTotals[m.user_id]||0;
     return'<div class="acc-member-row">'
-      +'<div class="acc-member-name">'+avEl(m.users.photo,'👦',28)+' '+m.users.nickname+'</div>'
+      +'<div class="acc-member-name">'+avEl(m.users.photo,'👦',28)+' '+gname(m)+'</div>'
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<div class="acc-member-bal">'+fmt(total)+'</div>'
-      +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+      +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+gname(m)+'\')">권한위임</button>'
       +'</div></div>';
   }).join('');
   renderPaymentTable(gms,txs||[]);
@@ -1765,7 +1768,7 @@ function renderPaymentTable(members,txs){
       }).reduce(function(s,tx){return s+tx.amount},0);
       return'<td class="'+(paid?'paid':'unpaid')+'">'+(paid?'✅':'❌')+'</td>';
     }).join('');
-    return'<tr><td style="font-weight:700">'+(m.users?.nickname||m.nickname||'')+'</td>'+cells+'<td class="paid">'+fmt(total)+'</td></tr>';
+    return'<tr><td style="font-weight:700">'+gname(m)+'</td>'+cells+'<td class="paid">'+fmt(total)+'</td></tr>';
   }).join('');
   table.innerHTML=header+rows;
 }
@@ -2266,6 +2269,7 @@ async function deleteGlobalLink(id){
 }
   function openMyInfo(){
   document.getElementById('myInfoUserId').value=currentUser.user_id||'';
+  document.getElementById('myInfoGroupAlias').value=currentGM?.group_alias||'';
   document.getElementById('myInfoNick').value='';
   document.getElementById('myInfoPin').value='';
   document.getElementById('myInfoPwd').value='';
@@ -2285,6 +2289,7 @@ function toggleLoginFields(){
 }
 
 async function submitMyInfo(){
+  const groupAlias=document.getElementById('myInfoGroupAlias').value.trim();
   const newNick=document.getElementById('myInfoNick').value.trim();
   const pin=document.getElementById('myInfoPin').value;
   const pwd=document.getElementById('myInfoPwd').value;
@@ -2301,6 +2306,8 @@ async function submitMyInfo(){
   }
   await db.from('users').update(upd).eq('id',currentUser.id);
   if(newNick) currentUser.nickname=newNick;
+  await db.from('group_members').update({group_alias:groupAlias||null}).eq('id',currentGM.id);
+  currentGM.group_alias=groupAlias||null;
   showToast('저장됐어요!');
   closeModal('myInfoModal');
 }
@@ -2336,7 +2343,7 @@ async function regenInviteCode(){
     if(!accs||!accs.length) continue;
     accs.forEach(function(a){
       html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
-        +'<div class="acc-name">'+m.users.nickname+' · '+a.name+'</div>'
+        +'<div class="acc-name">'+gname(m)+' · '+a.name+'</div>'
         +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
         +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
         +'</div>';
@@ -2686,7 +2693,7 @@ function showRecentPopup(key){
     const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).order('role',{ascending:true});
     wrap.innerHTML='<div class="card">'+(gms||[]).map(function(m){
     const av=m.users.photo?'<div class="avatar" style="width:36px;height:36px;cursor:pointer" onclick="openPhotoOverlay(\''+m.users.photo+'\')"><img src="'+m.users.photo+'"></div>':avEl(null,'👦',36);
-return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+m.users.nickname+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span>'+(m.role==='admin'?'<span style="font-size:11px;color:var(--blue);font-weight:700;margin-left:auto">은행장</span>':'')+'</div>';
+return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+gname(m)+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span>'+(m.role==='admin'?'<span style="font-size:11px;color:var(--blue);font-weight:700;margin-left:auto">은행장</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     wrap.style.display='none';
