@@ -635,7 +635,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   </div>
   <div class="chat-messages" id="chatMessages"></div>
   <div class="chat-input-wrap">
-    <button class="chat-img-btn" onclick="document.getElementById('chatImgInput').click()">🖼</button>
+    <button class="chat-img-btn" onclick="document.getElementById('chatImgInput').click()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="4" ry="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2"/><path d="M2 17l5-5 4 4 3-3 6 6"/></svg></button>
     <input type="file" id="chatImgInput" accept="image/*" style="display:none" onchange="sendChatImage(this)">
     <textarea class="chat-input" id="chatInput" placeholder="메시지 입력..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"></textarea>
     <button class="chat-send-btn" onclick="sendChatMessage()">
