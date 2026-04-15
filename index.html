@@ -605,7 +605,6 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <h3>개인정보 수정</h3>
     <div class="ig"><label>아이디</label><input type="text" id="myInfoUserId" readonly style="background:#F3F4F6"></div>
     <div class="ig"><label>이 그룹에서의 별칭</label><input type="text" id="myInfoGroupAlias" placeholder="이 그룹에서만 사용할 이름"></div>
-    <div class="ig"><label>전체 별칭 변경</label><input type="text" id="myInfoNick" placeholder="모든 그룹 공통 (비우면 변경 안함)"></div>
     <div class="ig">
   <label>로그인 방식</label>
   <div class="segment" id="loginTypeSeg">
@@ -1405,7 +1404,7 @@ async function loadHome(){
   renderMyAvatar();await checkNoticeBadge();checkLoanWarning();
   const isAdmin=currentGM.role==='admin';
   if(isAdmin){
-    document.getElementById('adminName').textContent=currentUser.nickname;
+    document.getElementById('adminName').textContent=currentGM.group_alias||currentUser.nickname;
     const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     let total=0;const summaries=[];
     if(members){
@@ -1438,7 +1437,7 @@ async function loadHome(){
 await loadRecentActivity('adminRecentActivity');
     }
  } else {
-    document.getElementById('memberName').textContent=currentUser.nickname;
+    document.getElementById('memberName').textContent=currentGM.group_alias||currentUser.nickname;
     let accs=[];
     const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
     accs=myAccs||[];
@@ -2270,7 +2269,6 @@ async function deleteGlobalLink(id){
   function openMyInfo(){
   document.getElementById('myInfoUserId').value=currentUser.user_id||'';
   document.getElementById('myInfoGroupAlias').value=currentGM?.group_alias||'';
-  document.getElementById('myInfoNick').value='';
   document.getElementById('myInfoPin').value='';
   document.getElementById('myInfoPwd').value='';
   document.getElementById('myInfoPwdConfirm').value='';
@@ -2290,12 +2288,10 @@ function toggleLoginFields(){
 
 async function submitMyInfo(){
   const groupAlias=document.getElementById('myInfoGroupAlias').value.trim();
-  const newNick=document.getElementById('myInfoNick').value.trim();
   const pin=document.getElementById('myInfoPin').value;
   const pwd=document.getElementById('myInfoPwd').value;
   const pwdConfirm=document.getElementById('myInfoPwdConfirm').value;
   const upd={login_type:document.getElementById('myLoginType').value};
-  if(newNick) upd.nickname=newNick;
   if(pin){
     if(pin.length!==4){showToast('PIN은 4자리여야 해요');return}
     upd.pin=pin;
@@ -2305,11 +2301,11 @@ async function submitMyInfo(){
     upd.password=pwd;
   }
   await db.from('users').update(upd).eq('id',currentUser.id);
-  if(newNick) currentUser.nickname=newNick;
   await db.from('group_members').update({group_alias:groupAlias||null}).eq('id',currentGM.id);
   currentGM.group_alias=groupAlias||null;
   showToast('저장됐어요!');
   closeModal('myInfoModal');
+  invalidateTabCache('home');switchTab('home');
 }
   function copyInviteLink(url){
   navigator.clipboard.writeText(url).then(function(){
@@ -2724,7 +2720,7 @@ async function handleGroupPhotoUpload(e){
   reader.readAsDataURL(file);e.target.value='';
 }
 // ── Refresh FAB ──
-function refreshCurrentTab(){switchTab(currentTab)}
+function refreshCurrentTab(){invalidateTabCache(currentTab);switchTab(currentTab)}
 
 // ── Swipe back for history ──
 function setupSwipeBack(){
