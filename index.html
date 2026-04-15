@@ -11,6 +11,7 @@
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <style>
 :root{
   --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
@@ -63,6 +64,22 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .group-name{font-size:15px;font-weight:700}
 .group-meta{font-size:12px;color:var(--text-sub);margin-top:2px}
 .group-role-badge{font-size:11px;background:var(--blue);color:white;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:700}
+/* 그룹 선택 - 2열 그리드 */
+#groupList.group-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0}
+.group-grid-card{background:white;border-radius:16px;box-shadow:var(--shadow);cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
+.group-grid-card:active{opacity:0.85}
+.group-grid-photo{aspect-ratio:1;background:var(--blue-light);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.group-grid-photo img{width:100%;height:100%;object-fit:cover}
+.group-grid-name{padding:8px 10px;font-size:13px;font-weight:700;text-align:center;color:var(--text);line-height:1.3}
+.group-grid-badge{position:absolute;top:7px;left:7px;background:var(--blue);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+.group-grid-action{position:absolute;top:7px;right:7px;background:rgba(0,0,0,0.38);border:none;border-radius:8px;width:26px;height:26px;font-size:13px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+/* 토글 스위치 */
+.toggle-switch{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#CBD5E1;border-radius:26px;transition:.3s}
+.toggle-slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,0.18)}
+.toggle-switch input:checked+.toggle-slider{background:#4CAF50}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px)}
 
 /* Balance card */
 .balance-card{background:#1A1A2E;border-radius:var(--radius);padding:24px;color:white;margin-bottom:14px;position:relative;overflow:hidden}
@@ -695,6 +712,16 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:4px">MY 메뉴</div>
     <button class="my-menu-btn" onclick="closeMyMenu();openMyInfo()"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><circle cx="10" cy="5.5" r="4"/><path d="M2,20 C2,15.58 5.58,12 10,12 L13.5,12 L11,14.5 L11,20 Z"/><path d="M13.5,12 L16,9.5 L19.5,13 L17,15.5 L14,15.5 Z"/><path d="M11,14.5 L13.5,12 L14,15.5 L11,17 Z"/><path d="M17.5,8.5 L19.5,10.5 L21,9 L19,7 Z"/></svg> 개인정보 수정</button>
     <button class="my-menu-btn" onclick="closeMyMenu();openReminderScreen()"><svg viewBox="0 0 28 28" fill="none" width="26" height="26"><rect x="6" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><rect x="17" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><circle cx="14" cy="16" r="10" fill="#EF4444" stroke="#111" stroke-width="1.5"/><circle cx="14" cy="16" r="7.5" fill="#E8F4FD"/><line x1="14" y1="9.5" x2="14" y2="11" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="21" x2="14" y2="22.5" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="7.5" y1="16" x2="9" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="19" y1="16" x2="20.5" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="16" x2="14" y2="12" stroke="#222" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="16" x2="17" y2="16" stroke="#222" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="16" r="1.3" fill="#FB923C"/><rect x="10" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/><rect x="15" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/></svg> 알림 관리</button>
+    <div style="margin-top:14px;padding-top:14px;border-top:1px solid #F3F4F6">
+      <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:10px">설정</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;padding:4px 0">
+        <span style="font-size:14px;font-weight:500">로그인 시 최근 그룹 바로 가기</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="autoEnterToggle" onchange="setAutoEnter(this.checked)">
+          <span class="toggle-slider"></span>
+        </label>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1323,31 +1350,56 @@ async function doReg(){
 async function loadGroupSelect(){
   document.getElementById('loginWrap').style.display='none';
   document.getElementById('groupWrap').style.display='flex';
-  document.getElementById('groupSub').textContent=`${currentUser.nickname}님, 반가워요!`;
+  document.getElementById('groupSub').textContent=currentUser.nickname+'님, 반가워요!';
   checkTodayReminders();
   checkPendingInvites();
   const{data:gms}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
   const list=document.getElementById('groupList');
-  if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
+  if(!gms||!gms.length){list.className='';list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
+  // 자동입장 설정 확인
+  const autoEnter=localStorage.getItem('pb_auto_enter')==='true';
+  const lastGroupId=localStorage.getItem('pb_last_group_'+currentUser.id);
+  if(autoEnter&&lastGroupId){
+    const lastGM=gms.find(function(m){return m.group_id===lastGroupId});
+    if(lastGM){selectGroup(lastGroupId,lastGM.role);return}
+  }
+  // 저장된 순서 적용, 없으면 생성일순
+  const savedOrder=JSON.parse(localStorage.getItem('pb_group_order_'+currentUser.id)||'[]');
+  if(savedOrder.length){
+    gms.sort(function(a,b){
+      const ai=savedOrder.indexOf(a.group_id),bi=savedOrder.indexOf(b.group_id);
+      if(ai===-1&&bi===-1)return 0;if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
+    });
+  } else {
+    gms.sort(function(a,b){return new Date(a.groups.created_at)-new Date(b.groups.created_at)});
+  }
+  list.className='group-grid';
   list.innerHTML=gms.map(function(m){
-    const badge=m.role==='admin'?'<div class="group-role-badge">은행장</div>':'';
-    const actionBtn=m.role==='admin'
-      ?'<button onclick="event.stopPropagation();confirmDeleteGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">삭제</button>'
-      :'<button onclick="event.stopPropagation();confirmLeaveGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">탈퇴</button>';
-    const isGroupAdmin=m.role==='admin';
-    const groupAvatar=m.groups.photo
-      ?'<div class="group-icon" style="overflow:hidden;'+(isGroupAdmin?'cursor:pointer':'')+'" '+(isGroupAdmin?'onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"':'')+' ><img src="'+m.groups.photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px"></div>'
-      :'<div class="group-icon" '+(isGroupAdmin?'style="cursor:pointer" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"':'')+' ><span style="font-size:20px">'+(typeIcon[m.groups.type]||'👥')+'</span></div>';
-    return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')" style="position:relative">'
-      +groupAvatar
-      +'<div class="group-info">'
-      +'<div class="group-name">'+m.groups.name+'</div>'
-      +'<div class="group-meta">'+(typeLabel[m.groups.type]||'그룹')+'</div>'
-      +'</div>'+badge+actionBtn+'</div>';
+    const isAdmin=m.role==='admin';
+    const badge=isAdmin?'<div class="group-grid-badge">은행장</div>':'';
+    const actionBtn=isAdmin
+      ?'<button class="group-grid-action" onclick="event.stopPropagation();confirmDeleteGroup(\''+m.group_id+'\')">✕</button>'
+      :'<button class="group-grid-action" onclick="event.stopPropagation();confirmLeaveGroup(\''+m.group_id+'\')">✕</button>';
+    const photoHtml=m.groups.photo
+      ?'<img src="'+m.groups.photo+'" style="width:100%;height:100%;object-fit:cover">'
+      :'<span style="font-size:40px">'+(typeIcon[m.groups.type]||'👥')+'</span>';
+    const uploadAttr=isAdmin?'onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')" style="cursor:pointer"':'';
+    return'<div class="group-grid-card" data-group-id="'+m.group_id+'" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')">'
+      +'<div class="group-grid-photo" '+uploadAttr+'>'+photoHtml+'</div>'
+      +'<div class="group-grid-name">'+m.groups.name+'</div>'
+      +badge+actionBtn+'</div>';
   }).join('');
+  new Sortable(list,{
+    animation:150,delay:200,delayOnTouchOnly:true,
+    onEnd:function(){
+      const order=Array.from(list.querySelectorAll('.group-grid-card')).map(function(el){return el.dataset.groupId});
+      localStorage.setItem('pb_group_order_'+currentUser.id,JSON.stringify(order));
+    }
+  });
 }
 
 async function selectGroup(groupId,role){
+  localStorage.setItem('pb_last_group_'+currentUser.id,groupId);
   const{data:group}=await db.from('groups').select('*').eq('id',groupId).single();
   const{data:gm}=await db.from('group_members').select('*').eq('group_id',groupId).eq('user_id',currentUser.id).single();
   currentGroup=group;currentGM=gm;
@@ -2842,8 +2894,12 @@ async function declineInvite(){
 }
 
 // ── MY 메뉴 ──
-function openMyMenu(){document.getElementById('myMenuSheet').style.display='block'}
+function openMyMenu(){
+  document.getElementById('myMenuSheet').style.display='block';
+  document.getElementById('autoEnterToggle').checked=localStorage.getItem('pb_auto_enter')==='true';
+}
 function closeMyMenu(){document.getElementById('myMenuSheet').style.display='none'}
+function setAutoEnter(val){localStorage.setItem('pb_auto_enter',val?'true':'false')}
 
 // ── 알림 관리 ──
 function openReminderScreen(){
