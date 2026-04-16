@@ -3088,7 +3088,7 @@ async function sendChatImage(input){
 function openMyMenu(){document.getElementById('myMenuSheet').style.display='block'}
 function openSettingsScreen(){
   document.getElementById('autoEnterToggle').checked=localStorage.getItem('pb_auto_enter')==='true';
-  document.getElementById('settingsScreen').style.display='flex';
+  document.getElementById('settingsScreen').style.display='block';
 }
 function closeMyMenu(){document.getElementById('myMenuSheet').style.display='none'}
 function setAutoEnter(val){localStorage.setItem('pb_auto_enter',val?'true':'false')}
