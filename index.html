@@ -3019,7 +3019,6 @@ function renderChatMessages(msgs){
       +'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">'+timeStr+'</span>'
       +'</div>'
       +'</div>'
-      +(isMine?'<div class="msg-avatar">'+av+'</div>':'')
       +'</div>';
   });
   container.innerHTML=html;
@@ -3066,8 +3065,7 @@ function appendChatMessage(m){
     +'<div style="display:flex;align-items:flex-end;gap:4px;'+(isMine?'flex-direction:row-reverse':'')+'">'
     +'<div class="msg-bubble '+(m.image_url?'photo':(isMine?'mine':'other'))+'">'+bubbleContent+'</div>'
     +'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">'+timeStr+'</span>'
-    +'</div></div>'
-    +(isMine?'<div class="msg-avatar">'+av+'</div>':'');
+    +'</div></div>';
   container.appendChild(div);
 }
 async function sendChatMessage(){
