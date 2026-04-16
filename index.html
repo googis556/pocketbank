@@ -8,6 +8,7 @@
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
@@ -869,6 +870,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
     <div style="background:#FEF3C7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400E;line-height:1.7">⚠️ 본 차용증은 당사자 간 약정 내용을 기록한 문서로, 법적 효력은 작성 방식 및 상황에 따라 달라질 수 있습니다. 완전한 법적 보호를 원하시는 경우 공증사무소 방문을 권장드립니다.</div>
     <button onclick="generateIOU()" style="width:100%;background:var(--blue);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:'Pretendard',-apple-system,sans-serif">📄 차용증 이미지 저장</button>
+    <button onclick="generateDebtRepayment()" style="width:100%;background:#7C3AED;color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:'Pretendard',-apple-system,sans-serif">✅ 채무변제확인서 PDF 저장</button>
     <button onclick="createLoanAccount()" id="iouLoanBtn" style="width:100%;background:var(--green);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:24px;font-family:'Pretendard',-apple-system,sans-serif">🏦 대출 통장 만들기</button>
   </div>
 </div>
@@ -3230,6 +3232,63 @@ function openIOU(){
   setTimeout(initSignatureCanvas,100);
 }
 function closeIOU(){document.getElementById('iouScreen').style.display='none'}
+async function generateDebtRepayment(){
+  const credName=document.getElementById('iouCreditorName').value.trim();
+  const credPhone=document.getElementById('iouCreditorPhone').value.trim();
+  const credAddr=document.getElementById('iouCreditorAddr').value.trim();
+  const debtName=document.getElementById('iouDebtorName').value.trim();
+  const debtPhone=document.getElementById('iouDebtorPhone').value.trim();
+  const debtAddr=document.getElementById('iouDebtorAddr').value.trim();
+  const amount=parseInt(document.getElementById('iouAmount').value)||0;
+  const loanDate=document.getElementById('iouLoanDate').value;
+  if(!credName||!debtName||!amount){showToast('채권자, 채무자 이름과 금액을 입력해주세요');return;}
+  const todayStr=new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const loanDateStr=loanDate?new Date(loanDate).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'}):'';
+  const preview=document.getElementById('iouPreview');
+  preview.innerHTML=
+    '<div style="padding:48px 44px;font-family:\'Pretendard\',sans-serif;color:#111;background:white">'
+    +'<h1 style="text-align:center;font-size:28px;font-weight:900;letter-spacing:6px;margin-bottom:40px;border-bottom:3px solid #111;padding-bottom:16px">채무변제확인서</h1>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:32px;font-size:14px">'
+    +'<tr><td style="width:90px;padding:10px 0;font-weight:700;color:#555;vertical-align:top">채 권 자</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:15px">'+credName+'</strong>'+(credPhone?' &nbsp;'+credPhone:'')+(credAddr?'<br><span style="color:#666;font-size:13px">'+credAddr+'</span>':'')+'</td></tr>'
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555;vertical-align:top">채 무 자</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:15px">'+debtName+'</strong>'+(debtPhone?' &nbsp;'+debtPhone:'')+(debtAddr?'<br><span style="color:#666;font-size:13px">'+debtAddr+'</span>':'')+'</td></tr>'
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555">원 &nbsp;&nbsp;&nbsp;&nbsp; 금</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:16px">금 '+fmt(amount)+'원정 (₩'+fmt(amount)+')</strong></td></tr>'
+    +(loanDateStr?'<tr><td style="padding:10px 0;font-weight:700;color:#555">차 용 일</td><td style="padding:10px 0">'+loanDateStr+'</td></tr>':'')
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555">변제완료일</td><td style="padding:10px 0">'+todayStr+'</td></tr>'
+    +'</table>'
+    +'<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:20px 24px;margin-bottom:36px;font-size:14px;line-height:2">'
+    +'위 채무자 <strong>'+debtName+'</strong>은(는) 채권자 <strong>'+credName+'</strong>에게 위 원금 일체를<br>'
+    +'<strong>'+todayStr+'</strong>에 전액 변제 완료하였음을 확인합니다.<br>'
+    +'이로써 본 채권·채무 관계는 소멸됩니다.'
+    +'</div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:48px">'
+    +'<div style="text-align:center;min-width:180px">'
+    +'<div style="font-size:13px;color:#555;margin-bottom:6px">채권자</div>'
+    +'<div style="font-size:16px;font-weight:700;border-bottom:1px solid #111;padding-bottom:4px;min-width:120px">'+credName+' (인)</div>'
+    +'</div></div>'
+    +'<p style="text-align:center;font-size:13px;color:#555;margin-bottom:4px">'+todayStr+'</p>'
+    +'<p style="text-align:center;font-size:11px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:12px;line-height:1.7">본 확인서는 당사자 간 변제 사실을 기록한 문서입니다. 완전한 법적 보호를 위해 공증사무소 방문을 권장합니다.</p>'
+    +'</div>';
+  preview.style.left='0';preview.style.zIndex='-1';
+  showToast('PDF 생성 중...');
+  try{
+    const canvas=await html2canvas(preview,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+    preview.style.left='-9999px';
+    const{jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const imgW=210;
+    const imgH=(canvas.height*imgW)/canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,imgW,imgH);
+    pdf.save('채무변제확인서_'+debtName+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+    showToast('채무변제확인서 PDF가 저장됐어요!');
+  }catch(e){
+    preview.style.left='-9999px';
+    showToast('저장 실패. 다시 시도해주세요.');
+    console.error(e);
+  }
+}
 function calcMonthlyInterest(){
   const amt=parseInt(document.getElementById('iouAmount').value)||0;
   const rate=parseFloat(document.getElementById('iouRate').value)||0;
