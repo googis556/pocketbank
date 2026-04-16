@@ -22,7 +22,7 @@
   --radius:20px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;overflow-x:hidden}
 
 /* Header */
 .header{background:var(--blue);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(26,115,232,0.3)}
@@ -3027,6 +3027,7 @@ function subscribeChatRealtime(){
     .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'group_id=eq.'+currentGroup.id},async function(payload){
       const{data:full}=await db.from('messages').select('*,users(nickname,photo,user_id)').eq('id',payload.new.id).single();
       if(!full)return;
+      if(full.user_id===currentUser.id)return; // 내가 보낸 건 이미 표시됨
       if(document.getElementById('chatScreen').style.display==='flex'){
         appendChatMessage(full);scrollChatBottom();
       } else {
@@ -3067,6 +3068,9 @@ async function sendChatMessage(){
   if(!content)return;
   input.value='';input.style.height='auto';
   input.focus();
+  // 즉시 화면에 표시 (Realtime 대기 없이)
+  const tempMsg={id:'tmp_'+Date.now(),group_id:currentGroup.id,user_id:currentUser.id,content:content,created_at:new Date().toISOString(),image_url:null,users:{nickname:currentUser.nickname,photo:currentUser.photo,user_id:currentUser.id}};
+  appendChatMessage(tempMsg);scrollChatBottom();
   await db.from('messages').insert({group_id:currentGroup.id,user_id:currentUser.id,content});
 }
 async function sendChatImage(input){
@@ -3075,6 +3079,8 @@ async function sendChatImage(input){
   const reader=new FileReader();
   reader.onload=async function(e){
     const b64=e.target.result;
+    const tempMsg={id:'tmp_'+Date.now(),group_id:currentGroup.id,user_id:currentUser.id,content:null,created_at:new Date().toISOString(),image_url:b64,users:{nickname:currentUser.nickname,photo:currentUser.photo,user_id:currentUser.id}};
+    appendChatMessage(tempMsg);scrollChatBottom();
     await db.from('messages').insert({group_id:currentGroup.id,user_id:currentUser.id,image_url:b64});
   };
   reader.readAsDataURL(file);
