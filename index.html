@@ -3004,7 +3004,7 @@ function renderChatMessages(msgs){
     const bubbleClass='msg-bubble '+(isPhoto?'photo':(isMine?'mine':'other'));
     html+='<div class="msg-row'+(isMine?' mine':'')+'">'
       +(isMine?'':'<div class="msg-avatar">'+av+'</div>')
-      +'<div>'
+      +'<div style="flex:1;min-width:0">'
       +nameEl
       +'<div style="display:flex;align-items:flex-end;gap:4px;'+(isMine?'flex-direction:row-reverse':'')+'">'
       +'<div class="'+bubbleClass+'">'+bubbleContent+'</div>'
@@ -3053,7 +3053,7 @@ function appendChatMessage(m){
   const div=document.createElement('div');
   div.className='msg-row'+(isMine?' mine':'');
   div.innerHTML=(isMine?'':'<div class="msg-avatar">'+av+'</div>')
-    +'<div>'
+    +'<div style="flex:1;min-width:0">'
     +nameEl
     +'<div style="display:flex;align-items:flex-end;gap:4px;'+(isMine?'flex-direction:row-reverse':'')+'">'
     +'<div class="msg-bubble '+(m.image_url?'photo':(isMine?'mine':'other'))+'">'+bubbleContent+'</div>'
