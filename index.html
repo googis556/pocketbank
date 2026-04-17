@@ -3749,14 +3749,18 @@ async function saveLedgerDay(){
     if(item&&amount>0)entries.push({alias:alias||null,item,amount});
   });
   if(!entries.length){showToast('항목명과 금액을 입력해주세요');return;}
+  showToast('gid:'+currentGroup.id+' date:'+ledgerCurrentDate+' cnt:'+entries.length);
+  await new Promise(function(r){setTimeout(r,2000)});
   const{error:delErr}=await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
-  if(delErr){showToast('오류: '+delErr.message);return;}
-  const{error:insErr}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})}));
-  if(insErr){showToast('오류: '+insErr.message);return;}
+  if(delErr){showToast('삭제오류: '+delErr.message);return;}
+  const{error:insErr,data:insData}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})})).select();
+  if(insErr){showToast('삽입오류: '+insErr.message);return;}
+  showToast('삽입완료: '+(insData?insData.length:0)+'건');
+  await new Promise(function(r){setTimeout(r,2000)});
   closeLedgerDay();
   await loadLedgerData();
   renderLedger();
-  showToast('저장됐어요!');
+  showToast('로드완료: '+ledgerData.length+'건');
 }
 </script>
 </body>
