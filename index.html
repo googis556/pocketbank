@@ -305,6 +305,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .ldg-cal-dn{font-size:12px;font-weight:700;margin-bottom:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%}
 .ldg-cal-dn.today{background:var(--blue);color:white}
 .ldg-cal-item{font-size:9px;color:#374151;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ldg-cal-cell{background:white;padding:4px 3px;cursor:pointer;overflow:hidden;min-height:0}
+.ldg-cal-cell.empty{background:#FAFAFA;cursor:default}
 .ldg-row-date{background:#E8EEF9;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px 10px 0 0;margin-top:10px}
 .ldg-row-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #F3F4F6;background:white}
 .ldg-alias-tag{font-size:11px;background:#EFF6FF;color:var(--blue);padding:2px 6px;border-radius:4px;margin-right:6px;font-weight:700}
@@ -3602,14 +3604,18 @@ function renderLedgerCalendar(){
   const firstDow=new Date(y,m,1).getDay();
   const daysInMonth=new Date(y,m+1,0).getDate();
   const todayStr=new Date().toISOString().slice(0,10);
+  const numWeeks=Math.ceil((firstDow+daysInMonth)/7);
   const byDate={};
   ledgerData.forEach(function(e){
     const d=e.date.slice(8,10);
     if(!byDate[d])byDate[d]=[];
     byDate[d].push(e);
   });
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='hidden';
+  content.style.paddingBottom='calc(env(safe-area-inset-bottom,0px) + 8px)';
   const heads=['일','월','화','수','목','금','토'];
-  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#E5E7EB">';
+  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:28px repeat('+numWeeks+',1fr);gap:1px;background:#E5E7EB;height:100%">';
   heads.forEach(function(d,i){
     const c=i===0?'color:#EF4444':i===6?'color:#3B82F6':'color:var(--text-sub)';
     html+='<div class="ldg-cal-head" style="'+c+'">'+d+'</div>';
@@ -3626,7 +3632,7 @@ function renderLedgerCalendar(){
     items.slice(0,3).forEach(function(e){
       html+='<div class="ldg-cal-item">'+(e.alias?e.alias+' ':'')+fmt(e.amount)+'</div>';
     });
-    if(items.length>3)html+='<div class="ldg-cal-item" style="color:var(--blue)">+'+( items.length-3)+'건</div>';
+    if(items.length>3)html+='<div class="ldg-cal-item" style="color:var(--blue)">+'+(items.length-3)+'건</div>';
     html+='</div>';
   }
   const trailing=(7-(firstDow+daysInMonth)%7)%7;
@@ -3636,6 +3642,8 @@ function renderLedgerCalendar(){
 }
 
 function renderLedgerList(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
   const byDate={};
   ledgerData.forEach(function(e){
     if(!byDate[e.date])byDate[e.date]=[];
@@ -3669,6 +3677,8 @@ function renderLedgerList(){
 }
 
 function renderLedgerMembers(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
   const byAlias={};
   ledgerData.forEach(function(e){
     const k=e.alias||'공통';
