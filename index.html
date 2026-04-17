@@ -3580,8 +3580,13 @@ async function loadLedgerData(){
   const m=String(ledgerMonth.getMonth()+1).padStart(2,'0');
   const from=y+'-'+m+'-01';
   const to=y+'-'+m+'-31';
-  const{data}=await db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  const{data,error}=await db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  if(error){showToast('로드오류: '+error.message);ledgerData=[];return;}
   ledgerData=data||[];
+  if(!ledgerData.length){
+    const{data:all}=await db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).limit(3);
+    showToast('조회0건 / 전체샘플: '+(all?all.length:0)+'건 gid:'+currentGroup.id.slice(0,8));
+  }
 }
 
 function renderLedger(){
