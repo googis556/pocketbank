@@ -295,6 +295,21 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .full-screen-title{font-size:17px;font-weight:900}
 /* 차용증 대출 잔액 빨간색 */
 .acc-balance.loan{color:var(--red)}
+/* 가계부 */
+.ldg-cal-wrap{display:flex;flex-direction:column;height:100%}
+.ldg-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#E5E7EB;flex:1}
+.ldg-cal-head{background:#F3F4F6;text-align:center;font-size:11px;font-weight:700;padding:6px 0;color:var(--text-sub)}
+.ldg-cal-cell{background:white;min-height:clamp(68px,13vw,90px);padding:4px 3px;cursor:pointer;overflow:hidden}
+.ldg-cal-cell:active{background:#EFF6FF}
+.ldg-cal-cell.empty{background:#FAFAFA;cursor:default}
+.ldg-cal-dn{font-size:12px;font-weight:700;margin-bottom:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ldg-cal-dn.today{background:var(--blue);color:white}
+.ldg-cal-item{font-size:9px;color:#374151;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ldg-row-date{background:#E8EEF9;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px 10px 0 0;margin-top:10px}
+.ldg-row-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #F3F4F6;background:white}
+.ldg-alias-tag{font-size:11px;background:#EFF6FF;color:var(--blue);padding:2px 6px;border-radius:4px;margin-right:6px;font-weight:700}
+.ldg-view-btn{background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit}
+.ldg-view-btn.active{background:white;color:var(--blue);border-radius:6px}
 </style>
 
 </head>
@@ -384,8 +399,15 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
     </div>
     <div class="balance-card">
-      <div class="bc-label">전체 예금 총액</div>
-      <div class="bc-amount" id="adminTotal">₩0</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="bc-label">전체 예금 총액</div>
+          <div class="bc-amount" id="adminTotal">₩0</div>
+        </div>
+        <button onclick="openLedger()" style="background:rgba(255,255,255,0.18);border:none;border-radius:10px;padding:9px;cursor:pointer;color:white;flex-shrink:0;display:flex;align-items:center;justify-content:center">
+          <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg>
+        </button>
+      </div>
       <div id="adminSummary" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.8;line-height:1.9"></div>
     </div>
     <div class="sec-title">최근 활동</div>
@@ -912,6 +934,49 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
     <div style="background:#FEF3C7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400E;line-height:1.7">⚠️ 본 확인서는 당사자 간 변제 사실을 기록한 문서로, 완전한 법적 보호를 위해 공증사무소 방문을 권장드립니다.</div>
     <button onclick="generateDebtRepayment()" style="width:100%;background:#7C3AED;color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:24px;font-family:'Pretendard',-apple-system,sans-serif">📄 채무변제확인서 PDF 저장</button>
+  </div>
+</div>
+
+<!-- 가계부 전체화면 -->
+<div class="full-screen" id="ledgerScreen" style="display:none;flex-direction:column;background:#F5F6FA">
+  <div style="background:var(--blue);color:white;padding:12px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:10">
+    <button onclick="closeLedger()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">←</button>
+    <button onclick="ledgerPrevMonth()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">‹</button>
+    <span id="ledgerMonthTitle" style="font-size:16px;font-weight:900;flex:1;text-align:center"></span>
+    <button onclick="ledgerNextMonth()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">›</button>
+  </div>
+  <div style="background:var(--blue);color:white;padding:2px 16px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <div id="ledgerTotal" style="font-size:13px;font-weight:700;opacity:0.9"></div>
+    <div style="display:flex;gap:8px;align-items:center">
+      <div style="display:flex;background:rgba(255,255,255,0.2);border-radius:8px;overflow:hidden">
+        <button id="ldgBtnCal" class="ldg-view-btn active" onclick="setLedgerView('calendar')">📅</button>
+        <button id="ldgBtnList" class="ldg-view-btn" onclick="setLedgerView('list')">≡</button>
+      </div>
+      <button id="ldgBtnMem" class="ldg-view-btn" onclick="setLedgerView('members')" style="border-radius:8px">👥</button>
+    </div>
+  </div>
+  <div id="ledgerContent" style="flex:1;overflow-y:auto"></div>
+</div>
+
+<!-- 가계부 날짜 입력 모달 -->
+<div id="ledgerDayModal" onclick="if(event.target===this)closeLedgerDay()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:white;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,20px)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 id="ledgerDayTitle" style="font-size:16px;font-weight:900;color:var(--text)"></h3>
+      <button onclick="closeLedgerDay()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9CA3AF;line-height:1">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:65px 1fr 90px 24px;gap:4px;margin-bottom:6px;padding:0 2px">
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600">별칭</span>
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600">항목</span>
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600;text-align:right">금액</span>
+      <span></span>
+    </div>
+    <div id="ledgerDayRows"></div>
+    <button onclick="addLedgerRow()" style="width:100%;background:#F3F4F6;border:none;border-radius:10px;padding:10px;font-size:14px;cursor:pointer;margin-top:6px;font-weight:700;font-family:inherit">+ 항목 추가</button>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="closeLedgerDay()" style="flex:1;background:#F3F4F6;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">취소</button>
+      <button onclick="saveLedgerDay()" style="flex:2;background:var(--blue);color:white;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">저장</button>
+    </div>
   </div>
 </div>
 
@@ -3483,5 +3548,202 @@ document.addEventListener('click',function(){
   </div>
 </div>
   <input type="file" id="groupPhotoInput" accept="image/*" style="display:none" onchange="handleGroupPhotoUpload(event)">
+
+<script>
+// ── 가계부 ──
+let ledgerData=[];
+let ledgerMonth=new Date();
+let ledgerView='calendar';
+let ledgerCurrentDate='';
+
+async function openLedger(){
+  ledgerMonth=new Date();
+  document.getElementById('ledgerScreen').style.display='flex';
+  await loadLedgerData();
+  renderLedger();
+}
+function closeLedger(){document.getElementById('ledgerScreen').style.display='none'}
+
+async function ledgerPrevMonth(){
+  ledgerMonth=new Date(ledgerMonth.getFullYear(),ledgerMonth.getMonth()-1,1);
+  await loadLedgerData();renderLedger();
+}
+async function ledgerNextMonth(){
+  ledgerMonth=new Date(ledgerMonth.getFullYear(),ledgerMonth.getMonth()+1,1);
+  await loadLedgerData();renderLedger();
+}
+
+async function loadLedgerData(){
+  const y=ledgerMonth.getFullYear();
+  const m=String(ledgerMonth.getMonth()+1).padStart(2,'0');
+  const from=y+'-'+m+'-01';
+  const to=y+'-'+m+'-31';
+  const{data}=await db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  ledgerData=data||[];
+}
+
+function renderLedger(){
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월';
+  const total=ledgerData.reduce(function(s,e){return s+(e.amount||0)},0);
+  document.getElementById('ledgerTotal').textContent='이번 달 총 지출: ₩'+fmt(total);
+  ['Cal','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView==={Cal:'calendar',List:'list',Mem:'members'}[k]?' active':'');});
+  if(ledgerView==='calendar')renderLedgerCalendar();
+  else if(ledgerView==='list')renderLedgerList();
+  else renderLedgerMembers();
+}
+
+function setLedgerView(v){ledgerView=v;renderLedger();}
+
+function renderLedgerCalendar(){
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  const firstDow=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  const byDate={};
+  ledgerData.forEach(function(e){
+    const d=e.date.slice(8,10);
+    if(!byDate[d])byDate[d]=[];
+    byDate[d].push(e);
+  });
+  const heads=['일','월','화','수','목','금','토'];
+  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#E5E7EB">';
+  heads.forEach(function(d,i){
+    const c=i===0?'color:#EF4444':i===6?'color:#3B82F6':'color:var(--text-sub)';
+    html+='<div class="ldg-cal-head" style="'+c+'">'+d+'</div>';
+  });
+  for(let i=0;i<firstDow;i++)html+='<div class="ldg-cal-cell empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const items=byDate[String(d).padStart(2,'0')]||[];
+    const dow=(firstDow+d-1)%7;
+    const isToday=ds===todayStr;
+    const dc=dow===0?'color:#EF4444':dow===6?'color:#3B82F6':'';
+    html+='<div class="ldg-cal-cell" onclick="openLedgerDay(\''+ds+'\')">';
+    html+='<div class="ldg-cal-dn'+(isToday?' today':'')+'" style="'+dc+'">'+d+'</div>';
+    items.slice(0,3).forEach(function(e){
+      html+='<div class="ldg-cal-item">'+(e.alias?e.alias+' ':'')+fmt(e.amount)+'</div>';
+    });
+    if(items.length>3)html+='<div class="ldg-cal-item" style="color:var(--blue)">+'+( items.length-3)+'건</div>';
+    html+='</div>';
+  }
+  const trailing=(7-(firstDow+daysInMonth)%7)%7;
+  for(let i=0;i<trailing;i++)html+='<div class="ldg-cal-cell empty"></div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function renderLedgerList(){
+  const byDate={};
+  ledgerData.forEach(function(e){
+    if(!byDate[e.date])byDate[e.date]=[];
+    byDate[e.date].push(e);
+  });
+  const dates=Object.keys(byDate).sort();
+  const dayNames=['일','월','화','수','목','금','토'];
+  let html='<div style="padding:12px 16px 24px">';
+  dates.forEach(function(date){
+    const d=parseInt(date.slice(8));
+    const dow=new Date(date).getDay();
+    const items=byDate[date];
+    const dayTotal=items.reduce(function(s,e){return s+e.amount},0);
+    html+='<div style="margin-bottom:12px">';
+    html+='<div class="ldg-row-date" onclick="openLedgerDay(\''+date+'\')">'
+      +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+d+'일 ('+dayNames[dow]+')</span>'
+      +'<span style="font-size:13px;color:var(--text-sub)">₩'+fmt(dayTotal)+'</span>'
+      +'</div>';
+    html+='<div style="background:white;border-radius:0 0 10px 10px;overflow:hidden">';
+    items.forEach(function(e){
+      html+='<div class="ldg-row-item">'
+        +'<div>'+(e.alias?'<span class="ldg-alias-tag">'+e.alias+'</span>':'')+e.item+'</div>'
+        +'<span style="font-size:14px;font-weight:700;color:var(--red)">₩'+fmt(e.amount)+'</span>'
+        +'</div>';
+    });
+    html+='</div></div>';
+  });
+  if(!dates.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function renderLedgerMembers(){
+  const byAlias={};
+  ledgerData.forEach(function(e){
+    const k=e.alias||'공통';
+    byAlias[k]=(byAlias[k]||0)+e.amount;
+  });
+  const entries=Object.entries(byAlias).sort(function(a,b){return b[1]-a[1]});
+  const total=ledgerData.reduce(function(s,e){return s+e.amount},0);
+  let html='<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
+  entries.forEach(function(pair){
+    const alias=pair[0],amount=pair[1];
+    const pct=total>0?Math.round(amount/total*100):0;
+    html+='<div style="background:white;border-radius:14px;padding:16px;box-shadow:var(--shadow)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<span style="font-size:15px;font-weight:700">'+alias+'</span>'
+      +'<span style="font-size:16px;font-weight:900;color:var(--red)">₩'+fmt(amount)+'</span>'
+      +'</div>'
+      +'<div style="background:#F3F4F6;border-radius:99px;height:6px;overflow:hidden">'
+      +'<div style="background:var(--blue);height:100%;width:'+pct+'%;border-radius:99px"></div>'
+      +'</div>'
+      +'<div style="text-align:right;font-size:11px;color:var(--text-sub);margin-top:4px">'+pct+'%</div>'
+      +'</div>';
+  });
+  if(!entries.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function openLedgerDay(date){
+  ledgerCurrentDate=date;
+  const d=new Date(date+'T00:00:00');
+  const dayNames=['일','월','화','수','목','금','토'];
+  document.getElementById('ledgerDayTitle').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+dayNames[d.getDay()]+')';
+  const existing=ledgerData.filter(function(e){return e.date===date});
+  const rowsEl=document.getElementById('ledgerDayRows');
+  rowsEl.innerHTML='';
+  if(existing.length){existing.forEach(function(e){addLedgerRow(e)});}
+  else{for(let i=0;i<5;i++)addLedgerRow();}
+  document.getElementById('ledgerDayModal').style.display='flex';
+}
+
+function closeLedgerDay(){document.getElementById('ledgerDayModal').style.display='none'}
+
+function addLedgerRow(entry){
+  const rowsEl=document.getElementById('ledgerDayRows');
+  const div=document.createElement('div');
+  div.className='ldger';
+  div.style.cssText='display:grid;grid-template-columns:65px 1fr 90px 24px;gap:4px;margin-bottom:6px;align-items:center';
+  const inpStyle='border:1px solid #E5E7EB;border-radius:8px;padding:7px 6px;font-size:13px;font-family:inherit;width:100%';
+  div.innerHTML=
+    '<input type="text" placeholder="별칭" value="'+(entry&&entry.alias?entry.alias:'')+'" style="'+inpStyle+'">'
+    +'<input type="text" placeholder="항목명" value="'+(entry&&entry.item?entry.item:'')+'" style="'+inpStyle+'">'
+    +'<input type="text" inputmode="numeric" placeholder="금액" value="'+(entry&&entry.amount?entry.amount.toLocaleString():'')+'" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').replace(/\\B(?=(\\d{3})+(?!\\d))/g,\',\')" style="'+inpStyle+';text-align:right">'
+    +'<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#D1D5DB;font-size:18px;cursor:pointer;padding:0;line-height:1;text-align:center">✕</button>';
+  rowsEl.appendChild(div);
+}
+
+async function saveLedgerDay(){
+  const rows=document.querySelectorAll('#ledgerDayRows .ldger');
+  const entries=[];
+  rows.forEach(function(row){
+    const inp=row.querySelectorAll('input');
+    const alias=inp[0].value.trim();
+    const item=inp[1].value.trim();
+    const amount=parseInt(inp[2].value.replace(/,/g,''))||0;
+    if(item&&amount>0)entries.push({alias:alias||null,item,amount});
+  });
+  await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
+  if(entries.length){
+    await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})}));
+  }
+  closeLedgerDay();
+  await loadLedgerData();
+  renderLedger();
+  showToast('저장됐어요!');
+}
+</script>
 </body>
 </html>
