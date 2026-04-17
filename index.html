@@ -3748,7 +3748,6 @@ async function saveLedgerDay(){
     const amount=parseInt(inp[2].value.replace(/,/g,''))||0;
     if(item&&amount>0)entries.push({alias:alias||null,item,amount});
   });
-  if(!entries.length){showToast('항목명과 금액을 입력해주세요');return;}
   const{error:delErr}=await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
   if(delErr){showToast('오류: '+delErr.message);return;}
   const{error:insErr}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})})).select();
