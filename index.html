@@ -332,7 +332,11 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div class="ig"><label>아이디</label><input type="text" id="loginNickname" placeholder="아이디 입력" autocomplete="off" onblur="checkLoginType()"></div>
     <div class="ig" id="loginPinWrap"><label>PIN</label><input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="4자리"></div>
 <div class="ig" id="loginPwdWrap" style="display:none"><label>비밀번호</label><input type="password" id="loginPwd" placeholder="비밀번호"></div>
-    <div class="save-row"><input type="checkbox" id="saveNick"><label for="saveNick">아이디 저장</label></div>
+    <div class="save-row">
+      <input type="checkbox" id="saveNick"><label for="saveNick">아이디 저장</label>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="autoLogin"><label for="autoLogin">자동 로그인</label>
+    </div>
     <button class="btn-main" onclick="doLogin()">로그인</button>
     <div class="divider">처음이신가요?</div>
     <button class="btn-sub" onclick="showReg()">회원가입</button>
@@ -1391,9 +1395,20 @@ function toggleAtMode(){
 }
 
 // ── Login/Register ──
-window.onload=()=>{
+window.onload=async()=>{
   const saved=localStorage.getItem('pb_uid');
   if(saved){document.getElementById('loginNickname').value=saved;document.getElementById('saveNick').checked=true}
+  const autoId=localStorage.getItem('pb_auto_login_id');
+  const autoPin=localStorage.getItem('pb_auto_login_pin');
+  const autoPwd=localStorage.getItem('pb_auto_login_pwd');
+  if(autoId){
+    document.getElementById('autoLogin').checked=true;
+    document.getElementById('loginNickname').value=autoId;
+    document.getElementById('loginPin').value=autoPin||'';
+    document.getElementById('loginPwd').value=autoPwd||'';
+    await doLogin();
+    return;
+  }
   // Swipe back for history screen
   setupSwipeBack();
   const urlParams=new URLSearchParams(window.location.search);
@@ -1463,8 +1478,17 @@ async function doLogin(){
     user.user_id=nick;
   }
   fill.style.width='100%';setTimeout(()=>{prog.style.display='none';fill.style.width='0%'},400);
-  if(document.getElementById('saveNick').checked)localStorage.setItem('pb_uid',nick);
+  if(document.getElementById('saveNick').checked||document.getElementById('autoLogin').checked)localStorage.setItem('pb_uid',nick);
   else localStorage.removeItem('pb_uid');
+  if(document.getElementById('autoLogin').checked){
+    localStorage.setItem('pb_auto_login_id',nick);
+    localStorage.setItem('pb_auto_login_pin',pin);
+    localStorage.setItem('pb_auto_login_pwd',pwd);
+  } else {
+    localStorage.removeItem('pb_auto_login_id');
+    localStorage.removeItem('pb_auto_login_pin');
+    localStorage.removeItem('pb_auto_login_pwd');
+  }
   currentUser=user;
   initFCM();
   if(isLegacy){
@@ -1584,7 +1608,17 @@ async function selectGroup(groupId,role){
 }
 
 function changeGroup(){if(chatChannel){db.removeChannel(chatChannel);chatChannel=null;}currentGroup=null;currentGM=null;clearAllTabCache();document.getElementById('mainApp').style.display='none';loadGroupSelect(true)}
-function logout(){currentUser=null;currentGroup=null;document.getElementById('mainApp').style.display='none';document.getElementById('groupWrap').style.display='none';document.getElementById('loginWrap').style.display='flex';document.getElementById('loginPin').value=''}
+function logout(){
+  localStorage.removeItem('pb_auto_login_id');
+  localStorage.removeItem('pb_auto_login_pin');
+  localStorage.removeItem('pb_auto_login_pwd');
+  currentUser=null;currentGroup=null;
+  document.getElementById('autoLogin').checked=false;
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('groupWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('loginPin').value='';
+}
 
 function showCreateGroup(){document.getElementById('grpName').value='';document.getElementById('grpPwd').value='';document.getElementById('grpType').value='family';document.querySelectorAll('#grpTypeSeg .seg-btn').forEach((b,i)=>{b.classList.toggle('active',i===0)});showModal('createGroupModal')}
 function showJoinGroup(){document.getElementById('joinCode').value='';document.getElementById('joinPwd').value='';showModal('joinGroupModal')}
