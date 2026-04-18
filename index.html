@@ -3626,7 +3626,7 @@ function renderLedger(){
   const m=ledgerMonth.getMonth();
   document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월';
   const total=ledgerData.reduce(function(s,e){return s+(e.amount||0)},0);
-  document.getElementById('ledgerTotal').textContent='이번 달 총 지출: ₩'+fmt(total);
+  document.getElementById('ledgerTotal').textContent='이번 달 총 지출: '+fmt(total);
   ['Cal','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView==={Cal:'calendar',List:'list',Mem:'members'}[k]?' active':'');});
   if(ledgerView==='calendar')renderLedgerCalendar();
   else if(ledgerView==='list')renderLedgerList();
@@ -3697,13 +3697,13 @@ function renderLedgerList(){
     html+='<div style="margin-bottom:12px">';
     html+='<div class="ldg-row-date" onclick="openLedgerDay(\''+date+'\')">'
       +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+d+'일 ('+dayNames[dow]+')</span>'
-      +'<span style="font-size:13px;color:var(--text-sub)">₩'+fmt(dayTotal)+'</span>'
+      +'<span style="font-size:13px;color:var(--text-sub)">'+fmt(dayTotal)+'</span>'
       +'</div>';
     html+='<div style="background:white;border-radius:0 0 10px 10px;overflow:hidden">';
     items.forEach(function(e){
       html+='<div class="ldg-row-item">'
         +'<div>'+(e.alias?'<span class="ldg-alias-tag">'+e.alias+'</span>':'')+e.item+'</div>'
-        +'<span style="font-size:14px;font-weight:700;color:var(--red)">₩'+fmt(e.amount)+'</span>'
+        +'<span style="font-size:14px;font-weight:700;color:var(--red)">'+fmt(e.amount)+'</span>'
         +'</div>';
     });
     html+='</div></div>';
@@ -3730,7 +3730,7 @@ function renderLedgerMembers(){
     html+='<div style="background:white;border-radius:14px;padding:16px;box-shadow:var(--shadow)">'
       +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
       +'<span style="font-size:15px;font-weight:700">'+alias+'</span>'
-      +'<span style="font-size:16px;font-weight:900;color:var(--red)">₩'+fmt(amount)+'</span>'
+      +'<span style="font-size:16px;font-weight:900;color:var(--red)">'+fmt(amount)+'</span>'
       +'</div>'
       +'<div style="background:#F3F4F6;border-radius:99px;height:6px;overflow:hidden">'
       +'<div style="background:var(--blue);height:100%;width:'+pct+'%;border-radius:99px"></div>'
