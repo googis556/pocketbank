@@ -193,9 +193,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Notice */
 .notice-card{background:white;border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px}
 .n-title{font-size:14px;font-weight:700;margin-bottom:5px}
-.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical}
-.n-content.expanded{display:block;overflow:visible;-webkit-line-clamp:unset;margin-bottom:4px}
-.n-expand-btn{background:none;border:none;font-size:12px;color:var(--blue);cursor:pointer;padding:0 0 8px 0;font-weight:600;font-family:'Noto Sans KR',sans-serif}
+.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;cursor:pointer}
+.n-content.expanded{display:block;overflow:visible;-webkit-line-clamp:unset;margin-bottom:4px;cursor:pointer}
 .n-meta{font-size:11px;color:var(--text-sub);display:flex;justify-content:space-between;margin-bottom:7px}
 .n-actions{display:flex;gap:7px;padding-top:7px;border-top:1px solid #F3F4F6;flex-wrap:wrap;align-items:center}
 .like-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
@@ -2671,8 +2670,7 @@ const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+
     const nid='nc-'+n.id;
     return'<div class="notice-card" style="'+border+'">'
       +'<div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+newBadge+n.title+'</div>'
-      +'<div class="n-content" id="'+nid+'">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
-      +'<button class="n-expand-btn" onclick="toggleNoticeExpand(\''+nid+'\',this)">더보기 ▼</button>'
+      +'<div class="n-content" id="'+nid+'" onclick="toggleNoticeExpand(\''+nid+'\')">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
       +'<div class="n-meta"><span>'+fmtDate(n.created_at)+'</span><span>❤️'+lc+' 💬'+cc+'</span></div>'
       +'<div class="n-actions">'
       +'<button class="like-btn'+(isLiked?' liked':'')+'" onclick="toggleLike(\''+n.id+'\','+isLiked+')">❤️ '+lc+'</button>'
@@ -2685,7 +2683,7 @@ const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+
   const unread=notices.filter(n=>!readIds.has(n.id));
   if(unread.length){await db.from('notice_reads').upsert(unread.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});await checkNoticeBadge()}
 }
-function toggleNoticeExpand(id,btn){const el=document.getElementById(id);const expanded=el.classList.toggle('expanded');btn.textContent=expanded?'접기 ▲':'더보기 ▼'}
+function toggleNoticeExpand(id){document.getElementById(id).classList.toggle('expanded')}
 async function toggleLike(noticeId,isLiked){
   if(isLiked) await db.from('notice_likes').delete().eq('notice_id',noticeId).eq('user_id',currentUser.id);
   else await db.from('notice_likes').insert({notice_id:noticeId,user_id:currentUser.id});
@@ -2746,7 +2744,7 @@ async function loadLinks(){
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'">'+(l.content||'')+'</div><button class="n-expand-btn" onclick="toggleNoticeExpand(\''+glid+'\',this)">더보기 ▼</button>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'" onclick="toggleNoticeExpand(\''+glid+'\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join('');
   } else {
@@ -2763,7 +2761,7 @@ async function loadLinks(){
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'">'+(l.content||'')+'</div><button class="n-expand-btn" onclick="toggleNoticeExpand(\''+glid+'\',this)">더보기 ▼</button>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'" onclick="toggleNoticeExpand(\''+glid+'\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join(''):'');
   }
