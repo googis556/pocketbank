@@ -443,8 +443,18 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
     </div>
     <div class="balance-card">
-      <div class="bc-label">내 총 잔액</div>
-      <div class="bc-amount" id="memberTotal">₩0</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="bc-label">내 총 잔액</div>
+          <div class="bc-amount" id="memberTotal">₩0</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+          <button onclick="openLedger('readonly')" style="background:rgba(255,255,255,0.18);border:none;border-radius:10px;padding:9px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg>
+          </button>
+          <span style="font-size:10px;color:rgba(255,255,255,0.8);font-weight:700">가계부</span>
+        </div>
+      </div>
     </div>
     <div id="memberViewMembersWrap" style="display:none">
       <div style="display:flex;gap:8px;margin-bottom:10px">
@@ -795,6 +805,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:4px">MY 메뉴</div>
     <button class="my-menu-btn" onclick="closeMyMenu();openMyInfo()"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><circle cx="10" cy="5.5" r="4"/><path d="M2,20 C2,15.58 5.58,12 10,12 L13.5,12 L11,14.5 L11,20 Z"/><path d="M13.5,12 L16,9.5 L19.5,13 L17,15.5 L14,15.5 Z"/><path d="M11,14.5 L13.5,12 L14,15.5 L11,17 Z"/><path d="M17.5,8.5 L19.5,10.5 L21,9 L19,7 Z"/></svg> 개인정보 수정</button>
     <button class="my-menu-btn" onclick="closeMyMenu();openReminderScreen()"><svg viewBox="0 0 28 28" fill="none" width="26" height="26"><rect x="6" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><rect x="17" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><circle cx="14" cy="16" r="10" fill="#EF4444" stroke="#111" stroke-width="1.5"/><circle cx="14" cy="16" r="7.5" fill="#E8F4FD"/><line x1="14" y1="9.5" x2="14" y2="11" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="21" x2="14" y2="22.5" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="7.5" y1="16" x2="9" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="19" y1="16" x2="20.5" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="16" x2="14" y2="12" stroke="#222" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="16" x2="17" y2="16" stroke="#222" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="16" r="1.3" fill="#FB923C"/><rect x="10" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/><rect x="15" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/></svg> 알림 관리</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openPersonalLedger()"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg> 내 가계부</button>
     <button class="my-menu-btn" onclick="closeMyMenu();openSettingsScreen()"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"/><circle cx="15" cy="7" r="3" fill="white" stroke="currentColor" stroke-width="2.2"/><line x1="3" y1="17" x2="21" y2="17"/><circle cx="9" cy="17" r="3" fill="white" stroke="currentColor" stroke-width="2.2"/></svg> 설정</button>
   </div>
 </div>
@@ -3588,8 +3599,17 @@ let ledgerData=[];
 let ledgerMonth=new Date();
 let ledgerView='calendar';
 let ledgerCurrentDate='';
+let ledgerMode='normal'; // 'normal' | 'readonly' | 'personal'
 
-async function openLedger(){
+async function openLedger(mode){
+  ledgerMode=mode||'normal';
+  ledgerMonth=new Date();
+  document.getElementById('ledgerScreen').style.display='flex';
+  await loadLedgerData();
+  renderLedger();
+}
+async function openPersonalLedger(){
+  ledgerMode='personal';
   ledgerMonth=new Date();
   document.getElementById('ledgerScreen').style.display='flex';
   await loadLedgerData();
@@ -3613,7 +3633,13 @@ async function loadLedgerData(){
   const mm=String(mi+1).padStart(2,'0');
   const from=y+'-'+mm+'-01';
   const to=y+'-'+mm+'-'+String(lastDay).padStart(2,'0');
-  const{data,error}=await db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  let q;
+  if(ledgerMode==='personal'){
+    q=db.from('personal_ledger_entries').select('*').eq('user_id',currentUser.id).gte('date',from).lte('date',to).order('date');
+  } else {
+    q=db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  }
+  const{data,error}=await q;
   if(error){showToast('로드오류: '+error.message);ledgerData=[];return;}
   ledgerData=data||[];
 }
@@ -3621,7 +3647,8 @@ async function loadLedgerData(){
 function renderLedger(){
   const y=ledgerMonth.getFullYear();
   const m=ledgerMonth.getMonth();
-  document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월';
+  const titleSuffix=ledgerMode==='personal'?' (내 가계부)':ledgerMode==='readonly'?' (조회)':'';
+  document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월'+titleSuffix;
   const total=ledgerData.reduce(function(s,e){return s+(e.amount||0)},0);
   document.getElementById('ledgerTotal').textContent='이번 달 총 지출: '+fmt(total);
   ['Cal','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView==={Cal:'calendar',List:'list',Mem:'members'}[k]?' active':'');});
@@ -3661,7 +3688,8 @@ function renderLedgerCalendar(){
     const dow=(firstDow+d-1)%7;
     const isToday=ds===todayStr;
     const dc=dow===0?'color:#EF4444':dow===6?'color:#3B82F6':'';
-    html+='<div class="ldg-cal-cell" onclick="openLedgerDay(\''+ds+'\')">';
+    const cellClick=ledgerMode==='readonly'?'':'onclick="openLedgerDay(\''+ds+'\')"';
+    html+='<div class="ldg-cal-cell" '+cellClick+'>';
     html+='<div class="ldg-cal-dn'+(isToday?' today':'')+'" style="'+dc+'">'+d+'</div>';
     items.slice(0,3).forEach(function(e){
       html+='<div class="ldg-cal-item">'+fmt(e.amount)+'</div>';
@@ -3692,7 +3720,8 @@ function renderLedgerList(){
     const items=byDate[date];
     const dayTotal=items.reduce(function(s,e){return s+e.amount},0);
     html+='<div style="margin-bottom:12px">';
-    html+='<div class="ldg-row-date" onclick="openLedgerDay(\''+date+'\')">'
+    const rowClick=ledgerMode==='readonly'?'':'onclick="openLedgerDay(\''+date+'\')"';
+    html+='<div class="ldg-row-date" '+rowClick+'>'
       +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+d+'일 ('+dayNames[dow]+')</span>'
       +'<span style="font-size:13px;color:var(--text-sub)">'+fmt(dayTotal)+'</span>'
       +'</div>';
@@ -3779,10 +3808,21 @@ async function saveLedgerDay(){
     const amount=parseInt(inp[2].value.replace(/,/g,''))||0;
     if(item&&amount>0)entries.push({alias:alias||null,item,amount});
   });
-  const{error:delErr}=await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
-  if(delErr){showToast('오류: '+delErr.message);return;}
-  const{error:insErr}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})})).select();
-  if(insErr){showToast('오류: '+insErr.message);return;}
+  if(ledgerMode==='personal'){
+    const{error:delErr}=await db.from('personal_ledger_entries').delete().eq('user_id',currentUser.id).eq('date',ledgerCurrentDate);
+    if(delErr){showToast('오류: '+delErr.message);return;}
+    if(entries.length){
+      const{error:insErr}=await db.from('personal_ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{user_id:currentUser.id,date:ledgerCurrentDate})})).select();
+      if(insErr){showToast('오류: '+insErr.message);return;}
+    }
+  } else {
+    const{error:delErr}=await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
+    if(delErr){showToast('오류: '+delErr.message);return;}
+    if(entries.length){
+      const{error:insErr}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})})).select();
+      if(insErr){showToast('오류: '+insErr.message);return;}
+    }
+  }
   closeLedgerDay();
   await loadLedgerData();
   renderLedger();
