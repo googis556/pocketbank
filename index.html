@@ -310,8 +310,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .ldg-row-date{background:#E8EEF9;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px 10px 0 0;margin-top:10px}
 .ldg-row-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #F3F4F6;background:white}
 .ldg-alias-tag{font-size:11px;background:#EFF6FF;color:var(--blue);padding:2px 6px;border-radius:4px;margin-right:6px;font-weight:700}
-.ldg-view-btn{background:rgba(255,255,255,0.15);border:none;color:white;padding:6px 12px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit}
+.ldg-view-btn{background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 8px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center}
 .ldg-view-btn.active{background:white;color:var(--blue);border-radius:6px}
+.ldg-week-hdr{background:#E8EEF9;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px;margin-top:10px}
 </style>
 
 </head>
@@ -961,10 +962,11 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   </div>
   <div style="background:var(--blue);color:white;padding:2px 16px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
     <div id="ledgerTotal" style="font-size:13px;font-weight:700;opacity:0.9"></div>
-    <div style="display:flex;gap:8px;align-items:center">
+    <div style="display:flex;gap:6px;align-items:center">
       <div style="display:flex;background:rgba(255,255,255,0.2);border-radius:8px;overflow:hidden">
-        <button id="ldgBtnCal" class="ldg-view-btn active" onclick="setLedgerView('calendar')">📅</button>
-        <button id="ldgBtnList" class="ldg-view-btn" onclick="setLedgerView('list')">≡</button>
+        <button id="ldgBtnCal" class="ldg-view-btn active" onclick="setLedgerView('calendar')" title="월별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="900" fill="#111">MONTH</text></svg></button>
+        <button id="ldgBtnWeek" class="ldg-view-btn" onclick="setLedgerView('week')" title="주별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="6.5" font-weight="900" fill="#111">WEEK</text></svg></button>
+        <button id="ldgBtnList" class="ldg-view-btn" onclick="setLedgerView('list')" title="일별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="900" fill="#111">DAY</text></svg></button>
       </div>
       <button id="ldgBtnMem" class="ldg-view-btn" onclick="setLedgerView('members')" style="border-radius:8px">👥</button>
     </div>
@@ -3655,8 +3657,10 @@ function renderLedger(){
   document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월'+titleSuffix;
   const total=ledgerData.reduce(function(s,e){return s+(e.amount||0)},0);
   document.getElementById('ledgerTotal').textContent='이번 달 총 지출: '+fmt(total);
-  ['Cal','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView==={Cal:'calendar',List:'list',Mem:'members'}[k]?' active':'');});
+  const viewMap={Cal:'calendar',Week:'week',List:'list',Mem:'members'};
+  ['Cal','Week','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView===viewMap[k]?' active':'');});
   if(ledgerView==='calendar')renderLedgerCalendar();
+  else if(ledgerView==='week')renderLedgerWeek();
   else if(ledgerView==='list')renderLedgerList();
   else renderLedgerMembers();
 }
@@ -3705,6 +3709,74 @@ function renderLedgerCalendar(){
   for(let i=0;i<trailing;i++)html+='<div class="ldg-cal-cell empty"></div>';
   html+='</div>';
   document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function renderLedgerWeek(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  const firstDow=new Date(y,m,1).getDay();
+  const dayNames=['일','월','화','수','목','금','토'];
+  const weekOrd=['첫째','둘째','셋째','넷째','다섯째'];
+  const byDate={};
+  ledgerData.forEach(function(e){
+    if(!byDate[e.date])byDate[e.date]=[];
+    byDate[e.date].push(e);
+  });
+  const byWeek={};
+  Object.keys(byDate).sort().forEach(function(date){
+    const day=parseInt(date.slice(8));
+    const wn=Math.ceil((day+firstDow)/7);
+    if(!byWeek[wn])byWeek[wn]={dates:[],total:0};
+    byWeek[wn].dates.push(date);
+    byWeek[wn].total+=byDate[date].reduce(function(s,e){return s+e.amount},0);
+  });
+  const weeks=Object.keys(byWeek).map(Number).sort();
+  let html='<div style="padding:12px 16px 24px">';
+  weeks.forEach(function(wn){
+    const wk=byWeek[wn];
+    const label=(m+1)+'월 '+(weekOrd[wn-1]||wn+'번째')+' 주';
+    const wid='wk_'+wn;
+    html+='<div style="margin-bottom:8px">';
+    html+='<div class="ldg-week-hdr" onclick="toggleWeek(\''+wid+'\')">'
+      +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+label+'</span>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--red)">'+fmt(wk.total)+'</span>'
+      +'<span id="arr_'+wid+'" style="color:var(--text-sub);font-size:11px;transition:transform 0.2s">▼</span>'
+      +'</div></div>';
+    html+='<div id="'+wid+'" style="display:none;background:white;border-radius:0 0 10px 10px;overflow:hidden">';
+    wk.dates.forEach(function(date){
+      const d=parseInt(date.slice(8));
+      const dow=new Date(date+'T00:00:00').getDay();
+      const items=byDate[date];
+      const dayTotal=items.reduce(function(s,e){return s+e.amount},0);
+      const dc=dow===0?'color:#EF4444':dow===6?'color:#3B82F6':'';
+      html+='<div style="padding:8px 14px;border-top:1px solid #F3F4F6">';
+      html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px">'
+        +'<span style="font-size:13px;font-weight:700;'+dc+'">'+d+'일 ('+dayNames[dow]+')</span>'
+        +'<span style="font-size:12px;color:var(--text-sub)">'+fmt(dayTotal)+'</span>'
+        +'</div>';
+      items.forEach(function(e){
+        html+='<div style="display:flex;justify-content:space-between;padding:3px 0">'
+          +'<div style="font-size:13px">'+(e.alias?'<span class="ldg-alias-tag">'+e.alias+'</span>':'')+e.item+'</div>'
+          +'<span style="font-size:13px;font-weight:700;color:var(--red)">'+fmt(e.amount)+'</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    });
+    html+='</div></div>';
+  });
+  if(!weeks.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+function toggleWeek(id){
+  const el=document.getElementById(id);
+  const arr=document.getElementById('arr_'+id);
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  arr.textContent=open?'▲':'▼';
 }
 
 function renderLedgerList(){
