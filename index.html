@@ -3,11 +3,17 @@
 <html lang="ko">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>포켓뱅크</title>
 <link rel="manifest" href="manifest.json">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-messaging-compat.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
 <style>
 :root{
   --blue:#1A73E8;--blue-dark:#0D47A1;--blue-light:#E8F0FE;
@@ -18,7 +24,7 @@
   --radius:20px;
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
-body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto}
+body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100vh;max-width:480px;margin:0 auto;overflow-x:hidden}
 
 /* Header */
 .header{background:var(--blue);color:white;padding:12px 16px;display:flex;justify-content:space-between;align-items:center;position:sticky;top:0;z-index:100;box-shadow:0 2px 12px rgba(26,115,232,0.3)}
@@ -60,6 +66,22 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .group-name{font-size:15px;font-weight:700}
 .group-meta{font-size:12px;color:var(--text-sub);margin-top:2px}
 .group-role-badge{font-size:11px;background:var(--blue);color:white;padding:2px 8px;border-radius:10px;flex-shrink:0;font-weight:700}
+/* 그룹 선택 - 2열 그리드 */
+#groupList.group-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:0}
+.group-grid-card{background:white;border-radius:16px;box-shadow:var(--shadow);cursor:pointer;overflow:hidden;position:relative;display:flex;flex-direction:column;-webkit-user-select:none;user-select:none}
+.group-grid-card:active{opacity:0.85}
+.group-grid-photo{aspect-ratio:1;background:var(--blue-light);display:flex;align-items:center;justify-content:center;overflow:hidden}
+.group-grid-photo img{width:100%;height:100%;object-fit:cover}
+.group-grid-name{padding:8px 10px;font-size:13px;font-weight:700;text-align:center;color:var(--text);line-height:1.3}
+.group-grid-badge{position:absolute;top:7px;left:7px;background:var(--blue);color:white;font-size:10px;font-weight:700;padding:2px 7px;border-radius:6px}
+.group-grid-action{position:absolute;top:7px;right:7px;background:rgba(0,0,0,0.38);border:none;border-radius:8px;width:26px;height:26px;font-size:13px;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;line-height:1}
+/* 토글 스위치 */
+.toggle-switch{position:relative;display:inline-block;width:46px;height:26px;flex-shrink:0}
+.toggle-switch input{opacity:0;width:0;height:0}
+.toggle-slider{position:absolute;cursor:pointer;inset:0;background:#CBD5E1;border-radius:26px;transition:.3s}
+.toggle-slider:before{content:"";position:absolute;height:20px;width:20px;left:3px;bottom:3px;background:white;border-radius:50%;transition:.3s;box-shadow:0 1px 4px rgba(0,0,0,0.18)}
+.toggle-switch input:checked+.toggle-slider{background:#4CAF50}
+.toggle-switch input:checked+.toggle-slider:before{transform:translateX(20px)}
 
 /* Balance card */
 .balance-card{background:#1A1A2E;border-radius:var(--radius);padding:24px;color:white;margin-bottom:14px;position:relative;overflow:hidden}
@@ -93,7 +115,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Tx */
 .tx-list{display:flex;flex-direction:column;gap:7px}
 .tx-item{background:white;border-radius:13px;padding:13px 14px;display:flex;align-items:center;gap:11px;box-shadow:0 1px 6px rgba(0,0,0,0.06)}
-.tx-icon{font-size:19px;width:34px;text-align:center;flex-shrink:0}
+.tx-icon{width:34px;flex-shrink:0;display:flex;align-items:center;justify-content:center}
 .tx-info{flex:1;min-width:0}
 .tx-note{font-size:13px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .tx-date{font-size:10px;color:var(--text-sub);margin-top:2px}
@@ -118,7 +140,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
 /* Tab bar */
 .tab-bar{position:fixed;bottom:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:white;display:flex;border-top:1px solid #E5E7EB;padding-bottom:env(safe-area-inset-bottom);box-shadow:0 -2px 10px rgba(0,0,0,0.07)}
-.tab-btn{flex:1;padding:10px 0 8px;border:none;background:none;font-size:10px;color:var(--text-sub);cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;display:flex;flex-direction:column;align-items:center;gap:3px;position:relative;transition:color 0.2s}
+.tab-btn{flex:1;padding:12px 0;border:none;background:none;color:var(--text-sub);cursor:pointer;display:flex;flex-direction:column;align-items:center;justify-content:center;position:relative;transition:color 0.2s}
 .tab-btn .ti{font-size:27px;line-height:1}
 .tab-btn .ti-text{font-size:14px;font-weight:700;line-height:1.2;letter-spacing:1px}
 .tab-btn.active{color:var(--blue)}
@@ -131,7 +153,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .seg-btn.active{background:white;color:var(--blue);font-weight:700;box-shadow:0 1px 4px rgba(0,0,0,0.12)}
 
 /* Modal */
-.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:200;align-items:flex-end;justify-content:center}
+.modal-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.5);z-index:350;align-items:flex-end;justify-content:center}
 .modal-overlay.active{display:flex}
 .modal{background:white;border-radius:24px 24px 0 0;padding:26px 22px 38px;width:100%;max-width:480px;max-height:85vh;overflow-y:auto}
 .modal h3{font-size:17px;font-weight:700;margin-bottom:18px;color:var(--text)}
@@ -172,7 +194,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Notice */
 .notice-card{background:white;border-radius:14px;padding:14px;box-shadow:var(--shadow);margin-bottom:10px}
 .n-title{font-size:14px;font-weight:700;margin-bottom:5px}
-.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:8px}
+.n-content{font-size:13px;color:var(--text-sub);line-height:1.6;margin-bottom:4px;overflow:hidden;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;cursor:pointer}
+.n-content.expanded{display:block;overflow:visible;-webkit-line-clamp:unset;margin-bottom:4px;cursor:pointer}
 .n-meta{font-size:11px;color:var(--text-sub);display:flex;justify-content:space-between;margin-bottom:7px}
 .n-actions{display:flex;gap:7px;padding-top:7px;border-top:1px solid #F3F4F6;flex-wrap:wrap;align-items:center}
 .like-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 11px;font-size:12px;cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
@@ -227,6 +250,29 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Refresh FAB */
 .fab-refresh{position:fixed;right:18px;bottom:78px;width:44px;height:44px;background:var(--blue);color:white;border:none;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,115,232,0.4);z-index:99;transition:transform 0.2s}
 .fab-refresh:active{transform:scale(0.92)}
+.fab-chat{position:fixed;right:18px;bottom:130px;width:44px;height:44px;background:var(--blue);color:white;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,115,232,0.4);z-index:99;transition:transform 0.2s}
+.fab-chat:active{transform:scale(0.92)}
+.fab-chat-badge{position:absolute;top:-4px;right:-4px;background:#EF4444;color:white;font-size:10px;font-weight:700;min-width:16px;height:16px;border-radius:8px;display:flex;align-items:center;justify-content:center;padding:0 3px;pointer-events:none}
+/* 채팅 */
+.chat-screen{position:fixed;inset:0;background:var(--bg);z-index:200;display:none;flex-direction:column;max-width:480px;margin:0 auto;overflow-x:hidden}
+.chat-header{background:var(--blue);color:white;padding:14px 16px;display:flex;align-items:center;gap:12px;flex-shrink:0}
+.chat-messages{flex:1;overflow-y:auto;overflow-x:hidden;padding:12px 16px;display:flex;flex-direction:column;gap:8px;justify-content:flex-end}
+.chat-input-wrap{background:white;border-top:1px solid #E5E7EB;padding:10px 12px;display:flex;align-items:flex-end;gap:8px;flex-shrink:0}
+.chat-input{flex:1;border:2px solid #E5E7EB;border-radius:20px;padding:9px 14px;font-size:14px;font-family:'Pretendard',-apple-system,sans-serif;outline:none;resize:none;max-height:100px;line-height:1.4}
+.chat-input:focus{border-color:var(--blue)}
+.chat-send-btn{width:38px;height:38px;background:var(--blue);border:none;border-radius:50%;color:white;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.chat-img-btn{width:38px;height:38px;background:#F3F4F6;border:none;border-radius:50%;cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0;font-size:18px}
+.msg-row{display:flex;gap:8px;align-items:flex-end}
+.msg-row.mine{flex-direction:row-reverse}
+.msg-avatar{width:30px;height:30px;border-radius:50%;background:var(--blue-light);display:flex;align-items:center;justify-content:center;font-size:13px;flex-shrink:0;overflow:hidden}
+.msg-avatar img{width:100%;height:100%;object-fit:cover}
+.msg-bubble{max-width:68%;padding:9px 13px;border-radius:18px;font-size:14px;line-height:1.5;word-break:break-word}
+.msg-bubble.other{background:white;border-bottom-left-radius:4px;box-shadow:0 1px 3px rgba(0,0,0,0.08)}
+.msg-bubble.mine{background:var(--blue);color:white;border-bottom-right-radius:4px}
+.msg-bubble.photo{background:none!important;padding:0!important;box-shadow:none!important}
+.msg-bubble img{max-width:200px;border-radius:10px;display:block;cursor:pointer}
+.msg-meta{font-size:10px;color:#9CA3AF;margin-bottom:2px}
+.msg-name{font-size:11px;font-weight:700;color:var(--text-sub);margin-bottom:3px}
 
 /* Goal bar wrap */
 .goal-bar-wrap{margin-top:8px}
@@ -237,7 +283,37 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 .acc-member-row:last-child{border-bottom:none}
 .acc-member-name{font-size:14px;font-weight:600}
 .acc-member-bal{font-size:14px;font-weight:700;color:var(--blue)}
-.delegate-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:‘Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
+.delegate-btn{background:#FEF3C7;border:none;border-radius:8px;padding:5px 10px;font-size:11px;cursor:pointer;font-family:’Noto Sans KR’,sans-serif;color:var(--gold);font-weight:700}
+
+/* MY 메뉴 바텀시트 */
+.my-menu-btn{display:flex;align-items:center;gap:12px;width:100%;background:none;border:none;padding:14px 4px;font-size:15px;font-weight:600;cursor:pointer;color:var(--text);border-bottom:1px solid #F3F4F6;font-family:’Pretendard’,-apple-system,sans-serif;text-align:left}
+.my-menu-btn:last-child{border-bottom:none}
+.my-menu-btn:active{background:#F8FAFF}
+/* 알림 / 차용증 전체화면 */
+.full-screen{display:none;position:fixed;inset:0;z-index:250;background:var(--bg);max-width:480px;margin:0 auto;overflow-y:auto}
+.full-screen-header{background:var(--blue);color:white;padding:12px 16px;display:flex;align-items:center;gap:12px;position:sticky;top:0;z-index:10}
+.full-screen-back{background:none;border:none;color:white;font-size:22px;cursor:pointer;line-height:1;padding:0 4px}
+.full-screen-title{font-size:17px;font-weight:900}
+/* 차용증 대출 잔액 빨간색 */
+.acc-balance.loan{color:var(--red)}
+/* 가계부 */
+.ldg-cal-wrap{display:flex;flex-direction:column;height:100%}
+.ldg-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;background:#E5E7EB;flex:1}
+.ldg-cal-head{background:#F3F4F6;text-align:center;font-size:11px;font-weight:700;padding:6px 0;color:var(--text-sub)}
+.ldg-cal-cell{background:white;min-height:clamp(68px,13vw,90px);padding:4px 3px;cursor:pointer;overflow:hidden}
+.ldg-cal-cell:active{background:#EFF6FF}
+.ldg-cal-cell.empty{background:#FAFAFA;cursor:default}
+.ldg-cal-dn{font-size:12px;font-weight:700;margin-bottom:2px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;border-radius:50%}
+.ldg-cal-dn.today{background:var(--blue);color:white}
+.ldg-cal-item{font-size:9px;color:#374151;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ldg-cal-cell{background:white;padding:4px 3px;cursor:pointer;overflow:hidden;min-height:0}
+.ldg-cal-cell.empty{background:#FAFAFA;cursor:default}
+.ldg-row-date{background:#E8EEF9;padding:8px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px 10px 0 0;margin-top:10px}
+.ldg-row-item{display:flex;justify-content:space-between;align-items:center;padding:10px 14px;border-bottom:1px solid #F3F4F6;background:white}
+.ldg-alias-tag{font-size:11px;background:#EFF6FF;color:var(--blue);padding:2px 6px;border-radius:4px;margin-right:6px;font-weight:700}
+.ldg-view-btn{background:rgba(255,255,255,0.15);border:none;color:white;padding:5px 8px;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit;display:flex;align-items:center;justify-content:center}
+.ldg-view-btn.active{background:white;color:var(--blue);border-radius:6px}
+.ldg-week-hdr{background:#E8EEF9;padding:10px 14px;display:flex;justify-content:space-between;align-items:center;cursor:pointer;border-radius:10px;margin-top:10px}
 </style>
 
 </head>
@@ -258,7 +334,11 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div class="ig"><label>아이디</label><input type="text" id="loginNickname" placeholder="아이디 입력" autocomplete="off" onblur="checkLoginType()"></div>
     <div class="ig" id="loginPinWrap"><label>PIN</label><input type="password" inputmode="numeric" maxlength="4" id="loginPin" placeholder="4자리"></div>
 <div class="ig" id="loginPwdWrap" style="display:none"><label>비밀번호</label><input type="password" id="loginPwd" placeholder="비밀번호"></div>
-    <div class="save-row"><input type="checkbox" id="saveNick"><label for="saveNick">아이디 저장</label></div>
+    <div class="save-row">
+      <input type="checkbox" id="saveNick"><label for="saveNick">아이디 저장</label>
+      &nbsp;&nbsp;
+      <input type="checkbox" id="autoLogin"><label for="autoLogin">자동 로그인</label>
+    </div>
     <button class="btn-main" onclick="doLogin()">로그인</button>
     <div class="divider">처음이신가요?</div>
     <button class="btn-sub" onclick="showReg()">회원가입</button>
@@ -301,7 +381,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
     </div>
     <div class="header-btns">
-      <button class="hbtn" onclick="openMyInfo()" style="background:#DC2626">MY</button>
+      <button class="hbtn" onclick="openMyMenu()" style="background:#DC2626">MY</button>
       <button class="hbtn" onclick="changeGroup()">그룹변경</button>
       <button class="hbtn" onclick="logout()">로그아웃</button>
     </div>
@@ -318,10 +398,27 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
         <div class="profile-name" id="adminName"></div>
         <div class="profile-sub">은행장</div>
       </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <div id="loanWarningAdmin" style="display:none;position:relative">
+          <button onclick="toggleLoanWarning(event)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px">⚠️</button>
+          <div id="loanWarningTooltip" style="display:none;position:absolute;right:0;top:32px;background:#1A1A2E;color:white;padding:10px 14px;border-radius:10px;font-size:13px;white-space:nowrap;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.2)">채권자에게 그룹을 위임하세요</div>
+        </div>
+        <button onclick="confirmDeleteGroup(currentGroup.id)" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-weight:700">그룹삭제</button>
+      </div>
     </div>
     <div class="balance-card">
-      <div class="bc-label">전체 예금 총액</div>
-      <div class="bc-amount" id="adminTotal">₩0</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="bc-label">전체 예금 총액</div>
+          <div class="bc-amount" id="adminTotal">₩0</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+          <button onclick="openLedger()" style="background:rgba(255,255,255,0.18);border:none;border-radius:10px;padding:9px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg>
+          </button>
+          <span style="font-size:10px;color:rgba(255,255,255,0.8);font-weight:700">가계부</span>
+        </div>
+      </div>
       <div id="adminSummary" style="margin-top:10px;padding-top:10px;border-top:1px solid rgba(255,255,255,0.2);font-size:12px;opacity:0.8;line-height:1.9"></div>
     </div>
     <div class="sec-title">최근 활동</div>
@@ -339,13 +436,33 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
         <div class="profile-name" id="memberName"></div>
         <div class="profile-sub" id="memberSub"></div>
       </div>
+      <div style="margin-left:auto;display:flex;align-items:center;gap:6px">
+        <div id="loanWarningMember" style="display:none;position:relative">
+          <button onclick="toggleLoanWarning(event)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px">⚠️</button>
+          <div id="loanWarningTooltipMember" style="display:none;position:absolute;right:0;top:32px;background:#1A1A2E;color:white;padding:10px 14px;border-radius:10px;font-size:13px;white-space:nowrap;z-index:200;box-shadow:0 4px 12px rgba(0,0,0,0.2)">채권자에게 그룹을 위임하세요</div>
+        </div>
+        <button onclick="confirmLeaveGroup(currentGroup.id)" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-weight:700">탈퇴</button>
+      </div>
     </div>
     <div class="balance-card">
-      <div class="bc-label">내 총 잔액</div>
-      <div class="bc-amount" id="memberTotal">₩0</div>
+      <div style="display:flex;justify-content:space-between;align-items:flex-start">
+        <div>
+          <div class="bc-label">내 총 잔액</div>
+          <div class="bc-amount" id="memberTotal">₩0</div>
+        </div>
+        <div style="display:flex;flex-direction:column;align-items:center;gap:3px;flex-shrink:0">
+          <button onclick="openLedger('readonly')" style="background:rgba(255,255,255,0.18);border:none;border-radius:10px;padding:9px;cursor:pointer;color:white;display:flex;align-items:center;justify-content:center">
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg>
+          </button>
+          <span style="font-size:10px;color:rgba(255,255,255,0.8);font-weight:700">가계부</span>
+        </div>
+      </div>
     </div>
     <div id="memberViewMembersWrap" style="display:none">
-      <button onclick="toggleMemberListForMember()" style="width:100%;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;margin-bottom:10px;box-shadow:var(--shadow)">👥 구성원 보기</button>
+      <div style="display:flex;gap:8px;margin-bottom:10px">
+        <button onclick="toggleMemberListForMember()" style="flex:1;padding:10px;background:white;color:var(--blue);border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow);display:flex;align-items:center;justify-content:center;gap:6px"><svg viewBox="0 0 28 20" width="20" height="14"><circle cx="6" cy="6" r="4.5" fill="#FCCB8F"/><path d="M0,20 Q0,14 6,14 Q12,14 12,20 Z" fill="#E8795C"/><circle cx="14" cy="5" r="5" fill="#FCCB8F"/><path d="M6,20 Q6,13 14,13 Q22,13 22,20 Z" fill="#7CC47A"/><circle cx="22" cy="6" r="4.5" fill="#FCCB8F"/><path d="M16,20 Q16,14 22,14 Q28,14 28,20 Z" fill="#6BAED6"/></svg> 구성원 보기</button>
+        <button onclick="openInviteModal()" style="padding:10px 14px;background:var(--blue);color:white;border:none;border-radius:12px;font-family:'Noto Sans KR',sans-serif;font-size:13px;cursor:pointer;font-weight:700;box-shadow:var(--shadow)">구성원 초대</button>
+      </div>
       <div id="memberListForMember" style="display:none"></div>
     </div>
     <div class="sec-title">최근 활동</div>
@@ -378,7 +495,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
     <div style="display:flex;gap:6px;margin-bottom:12px;flex-wrap:wrap">
       <button class="act-btn edt" style="flex:none;padding:7px 11px" onclick="openEditName()">✏️ 이름</button>
-      <button class="act-btn adj" style="flex:none;padding:7px 11px" onclick="openEditJoinDate()">📅 개설일</button>
+      <button class="act-btn adj" style="flex:none;padding:7px 11px" onclick="openEditJoinDate()"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="miter" width="16" height="16" style="vertical-align:middle"><rect x="2" y="4" width="20" height="18"/><line x1="2" y1="9" x2="22" y2="9"/><rect x="6" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="15" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="5.5" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="5.5" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/></svg> 개설일</button>
       <button class="act-btn rat" style="flex:none;padding:7px 11px" onclick="showAddMemberAccount()">+ 통장추가</button>
     </div>
     <div id="detailAccList"></div>
@@ -393,7 +510,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="bc-label" id="accDetailName">통장명</div>
       <div style="display:flex;align-items:center;justify-content:space-between">
   <div class="bc-amount" id="accDetailBalance">₩0</div>
-  <button id="calBtn" onclick="openCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;font-size:18px;cursor:pointer;display:none">📅</button>
+  <button id="xlsBtn" onclick="openExcelExport()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;cursor:pointer;display:none;margin-right:4px"><svg viewBox="0 0 24 24" width="20" height="20" fill="none" style="display:block"><rect x="2" y="2" width="20" height="20" rx="3" fill="#1D6F42"/><text x="12" y="16" text-anchor="middle" font-size="9" font-weight="bold" fill="white" font-family="sans-serif">XLS</text></svg></button>
+  <button id="calBtn" onclick="openCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;cursor:pointer;display:none"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="miter" width="20" height="20" style="display:block"><rect x="2" y="4" width="20" height="18"/><line x1="2" y1="9" x2="22" y2="9"/><rect x="6" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="15" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="5.5" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="5.5" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/></svg></button>
 </div>
       <div class="bc-grid" id="accDetailInterest"></div>
     </div>
@@ -424,8 +542,8 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   </div>
     </div>
        <div class="act-row" id="accActions">
-      <button class="act-btn dep" onclick="openTx('deposit')">💰 입금</button>
-      <button class="act-btn wit" onclick="openTx('withdraw')">💸 출금</button>
+      <button class="act-btn dep" onclick="openTx('deposit')" style="display:flex;align-items:center;justify-content:center;gap:4px"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="12" fill="#4CAF50"/><path d="M10,6h4v6h3.5l-5.5,7-5.5-7H10z" fill="white"/></svg> 입금</button>
+      <button class="act-btn wit" onclick="openTx('withdraw')" style="display:flex;align-items:center;justify-content:center;gap:4px"><svg viewBox="0 0 24 24" width="18" height="18"><circle cx="12" cy="12" r="12" fill="#F44336"/><path d="M10,18h4v-6h3.5l-5.5-7-5.5,7H10z" fill="white"/></svg> 출금</button>
       <button class="act-btn int" onclick="openInterestModal()">📈 이자</button>
     </div>
     <div class="act-row">
@@ -472,7 +590,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <div class="bc-label" id="myAccName">통장명</div>
       <div style="display:flex;align-items:center;justify-content:space-between">
   <div class="bc-amount" id="myAccBalance">₩0</div>
-  <button id="myCalBtn" onclick="openMyCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;font-size:18px;cursor:pointer">📅</button>
+  <button id="myCalBtn" onclick="openMyCalendar()" style="background:rgba(255,255,255,0.2);border:none;border-radius:10px;padding:6px 10px;cursor:pointer"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linejoin="miter" width="20" height="20" style="display:block"><rect x="2" y="4" width="20" height="18"/><line x1="2" y1="9" x2="22" y2="9"/><rect x="6" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="15" y="2" width="3" height="5" fill="currentColor" stroke="none"/><rect x="5.5" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="11" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="5.5" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="10.25" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/><rect x="15" y="16" width="3.5" height="3" fill="currentColor" stroke="none"/></svg></button>
 </div>
       <div class="bc-grid" id="myAccInterest"></div>
     </div>
@@ -527,39 +645,69 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div id="noticeList"></div>
   </div>
 
-  <!-- 기타 -->
+  <!-- 기타 작업 -->
 
   <div class="screen" id="etcScreen">
-    <div class="sec-title">
-      기타
-      <button class="add-btn" id="etcAddBtn" onclick="openAddLink()" style="display:none">+</button>
-    </div>
     <div id="globalLinkList"></div>
-    <div id="linkList"></div>
+    <div id="iouEtcSection">
+    <div class="sec-title" style="margin-top:18px">기타 작업</div>
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+      <button onclick="openIOU()" style="display:flex;align-items:center;gap:14px;background:white;border:none;border-radius:16px;padding:16px;box-shadow:var(--shadow);cursor:pointer;width:100%;text-align:left;font-family:'Pretendard',-apple-system,sans-serif">
+        <span style="font-size:28px">📄</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">차용증 작성</div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:2px">금전 거래 내용을 기록하고 이미지로 저장</div>
+        </div>
+      </button>
+      <button onclick="openDebtRepayment()" style="display:flex;align-items:center;gap:14px;background:white;border:none;border-radius:16px;padding:16px;box-shadow:var(--shadow);cursor:pointer;width:100%;text-align:left;font-family:'Pretendard',-apple-system,sans-serif">
+        <span style="font-size:28px">✅</span>
+        <div>
+          <div style="font-size:15px;font-weight:700;color:var(--text)">채무변제확인서 작성</div>
+          <div style="font-size:12px;color:var(--text-sub);margin-top:2px">변제 완료 사실을 PDF로 저장</div>
+        </div>
+      </button>
+    </div>
+    </div>
   </div>
 
   <!-- FAB Refresh -->
-
 <button class="fab-refresh" id="fabRefresh" onclick="refreshCurrentTab()">↻</button>
+
+<!-- 채팅 전체화면 -->
+<div class="chat-screen" id="chatScreen">
+  <div class="chat-header">
+    <button onclick="closeChat()" style="background:none;border:none;color:white;font-size:20px;cursor:pointer;padding:0;line-height:1">←</button>
+    <span style="font-size:16px;font-weight:700;flex:1" id="chatGroupName">채팅</span>
+  </div>
+  <div class="chat-messages" id="chatMessages"></div>
+  <div class="chat-input-wrap">
+    <button class="chat-img-btn" onclick="document.getElementById('chatImgInput').click()"><svg viewBox="0 0 24 24" width="20" height="20" fill="currentColor"><rect x="2" y="2" width="20" height="20" rx="4" ry="4" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="8" cy="8" r="2"/><path d="M2 17l5-5 4 4 3-3 6 6"/></svg></button>
+    <input type="file" id="chatImgInput" accept="image/*" style="display:none" onchange="sendChatImage(this)">
+    <textarea class="chat-input" id="chatInput" placeholder="메시지 입력..." rows="1" oninput="this.style.height='auto';this.style.height=this.scrollHeight+'px'" onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendChatMessage()}"></textarea>
+    <button class="chat-send-btn" onclick="sendChatMessage()">
+      <svg viewBox="0 0 24 24" width="18" height="18" fill="white"><path d="M2 21l21-9L2 3v7l15 2-15 2z"/></svg>
+    </button>
+  </div>
+</div>
 
   <!-- TAB BAR -->
 
   <div class="tab-bar" id="tabBar">
     <button class="tab-btn active" id="tab-home" onclick="switchTab('home')">
-      <span class="ti">🏠</span><span style="font-size:10px">홈</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><polyline points="2,12 12,2 22,12"/><path d="M4,11 L4,21 L9,21 L9,15 L15,15 L15,21 L20,21 L20,11"/></svg>
     </button>
     <button class="tab-btn" id="tab-account" onclick="switchTab('account')">
-      <span class="ti">📒</span><span style="font-size:10px">조회</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="square" stroke-linejoin="miter" width="26" height="26"><path d="M5,2 L5,22 L19,22 L19,7 L14,2 Z"/><polyline points="14,2 14,7 19,7"/><line x1="8" y1="11" x2="16" y2="11"/><line x1="8" y1="15" x2="16" y2="15"/><line x1="8" y1="19" x2="16" y2="19"/></svg>
     </button>
     <button class="tab-btn" id="tab-admin" onclick="switchTab('admin')" style="display:none">
-      <span class="ti">⚙️</span><span style="font-size:10px">관리</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linejoin="miter" width="26" height="26"><polygon points="12,2 14.7,5.5 19.1,4.9 18.5,9.3 22,12 18.5,14.7 19.1,19.1 14.7,18.5 12,22 9.3,18.5 4.9,19.1 5.5,14.7 2,12 5.5,9.3 4.9,4.9 9.3,5.5"/><circle cx="12" cy="12" r="3"/></svg>
     </button>
     <button class="tab-btn" id="tab-notice" onclick="switchTab('notice')">
-      <span class="ti">🔔</span><span style="font-size:10px">알림</span>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" width="26" height="26"><path d="M4,17 L4,15 L7,15 L7,10 Q7,4 12,4 Q17,4 17,10 L17,15 L20,15 L20,17 Z"/><path d="M10,17 Q10,20 12,20 Q14,20 14,17"/></svg>
       <div class="tab-badge" id="noticeBadge"></div>
     </button>
     <button class="tab-btn" id="tab-etc" onclick="switchTab('etc')">
-      <span class="ti-text">···</span><span style="font-size:10px">기타</span>
+      <svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><rect x="3" y="10" width="4" height="4"/><rect x="10" y="10" width="4" height="4"/><rect x="17" y="10" width="4" height="4"/></svg>
     </button>
   </div>
 </div>
@@ -569,7 +717,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   <div class="modal">
     <h3>개인정보 수정</h3>
     <div class="ig"><label>아이디</label><input type="text" id="myInfoUserId" readonly style="background:#F3F4F6"></div>
-    <div class="ig"><label>별칭 변경</label><input type="text" id="myInfoNick" placeholder="새 별칭 (비우면 변경 안함)"></div>
+    <div class="ig"><label>이 그룹에서의 별칭</label><input type="text" id="myInfoGroupAlias" placeholder="이 그룹에서만 사용할 이름"></div>
     <div class="ig">
   <label>로그인 방식</label>
   <div class="segment" id="loginTypeSeg">
@@ -588,6 +736,20 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     </div>
   </div>
 </div>
+<!-- 엑셀 다운로드 모달 -->
+<div class="modal-overlay" id="excelModal">
+  <div class="modal">
+    <h3>거래내역 엑셀 다운로드</h3>
+    <div class="ig"><label>시작일</label><input type="date" id="xlsFrom" style="width:100%"></div>
+    <div class="ig"><label>종료일</label><input type="date" id="xlsTo" style="width:100%"></div>
+    <div style="font-size:12px;color:var(--text-sub);margin-bottom:12px">선택한 기간의 거래내역이 .xlsx 파일로 저장됩니다.</div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('excelModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="downloadExcel()">⬇ 내려받기</button>
+    </div>
+  </div>
+</div>
+
   <div class="modal-overlay" id="calModal">
   <div class="modal">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:16px">
@@ -603,6 +765,30 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   </div>
 </div>
 
+<!-- 구성원 초대 모달 -->
+<div class="modal-overlay" id="inviteModal">
+  <div class="modal">
+    <h3>구성원 초대</h3>
+    <div class="ig"><label>초대할 아이디</label><input type="text" id="inviteUserId" placeholder="예: parkjimin" autocomplete="off" style="text-transform:lowercase"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('inviteModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitInvite()">초대</button>
+    </div>
+  </div>
+</div>
+
+<!-- 초대 수신 팝업 -->
+<div class="modal-overlay" id="inviteReceiveModal">
+  <div class="modal">
+    <h3>그룹 초대</h3>
+    <p id="inviteReceiveMsg" style="font-size:14px;color:var(--text);margin-bottom:16px;line-height:1.7"></p>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="declineInvite()">거절</button>
+      <button class="mbtn mbtn-primary" onclick="acceptInvite()">수락</button>
+    </div>
+  </div>
+</div>
+
 <div class="modal-overlay" id="setUserIdModal">
   <div class="modal">
     <h3>아이디 설정</h3>
@@ -611,6 +797,213 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="skipSetUserId()">나중에</button>
       <button class="mbtn mbtn-primary" onclick="submitSetUserId()">설정</button>
+    </div>
+  </div>
+</div>
+
+<!-- MY 메뉴 바텀시트 -->
+<div id="myMenuSheet" onclick="if(event.target===this)closeMyMenu()" style="display:none;position:fixed;inset:0;z-index:300;background:rgba(0,0,0,0.45)">
+  <div style="position:absolute;top:0;left:50%;transform:translateX(-50%);width:100%;max-width:480px;background:white;border-radius:0 0 20px 20px;padding:48px 20px 20px">
+    <div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:4px">MY 메뉴</div>
+    <button class="my-menu-btn" onclick="closeMyMenu();openMyInfo()"><svg viewBox="0 0 24 24" fill="currentColor" width="26" height="26"><circle cx="10" cy="5.5" r="4"/><path d="M2,20 C2,15.58 5.58,12 10,12 L13.5,12 L11,14.5 L11,20 Z"/><path d="M13.5,12 L16,9.5 L19.5,13 L17,15.5 L14,15.5 Z"/><path d="M11,14.5 L13.5,12 L14,15.5 L11,17 Z"/><path d="M17.5,8.5 L19.5,10.5 L21,9 L19,7 Z"/></svg> 개인정보 수정</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openReminderScreen()"><svg viewBox="0 0 28 28" fill="none" width="26" height="26"><rect x="6" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><rect x="17" y="4" width="5" height="3.5" rx="1.5" fill="#EF4444" stroke="#111" stroke-width="1.2"/><circle cx="14" cy="16" r="10" fill="#EF4444" stroke="#111" stroke-width="1.5"/><circle cx="14" cy="16" r="7.5" fill="#E8F4FD"/><line x1="14" y1="9.5" x2="14" y2="11" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="21" x2="14" y2="22.5" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="7.5" y1="16" x2="9" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="19" y1="16" x2="20.5" y2="16" stroke="#333" stroke-width="1.5" stroke-linecap="round"/><line x1="14" y1="16" x2="14" y2="12" stroke="#222" stroke-width="2" stroke-linecap="round"/><line x1="14" y1="16" x2="17" y2="16" stroke="#222" stroke-width="2" stroke-linecap="round"/><circle cx="14" cy="16" r="1.3" fill="#FB923C"/><rect x="10" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/><rect x="15" y="25" width="3" height="2" rx="1" fill="#B0C4CE" stroke="#222" stroke-width="1"/></svg> 알림 관리</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openPersonalLedger()"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h8"/><polyline points="13 2 13 8 19 8"/><line x1="7" y1="12" x2="12" y2="12"/><line x1="7" y1="15" x2="12" y2="15"/><line x1="7" y1="18" x2="10" y2="18"/><path d="M15 18l4-4 2 2-4 4h-2v-2z"/></svg> 내 가계부</button>
+    <button class="my-menu-btn" onclick="closeMyMenu();openSettingsScreen()"><svg viewBox="0 0 24 24" width="26" height="26" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><line x1="3" y1="7" x2="21" y2="7"/><circle cx="15" cy="7" r="3" fill="white" stroke="currentColor" stroke-width="2.2"/><line x1="3" y1="17" x2="21" y2="17"/><circle cx="9" cy="17" r="3" fill="white" stroke="currentColor" stroke-width="2.2"/></svg> 설정</button>
+  </div>
+</div>
+
+<!-- 설정 전체화면 -->
+<div class="full-screen" id="settingsScreen" style="display:none;background:#F5F6FA">
+  <div style="display:flex;align-items:center;gap:8px;padding:14px 16px 10px;background:#F5F6FA;position:sticky;top:0;z-index:10">
+    <button onclick="document.getElementById('settingsScreen').style.display='none'" style="background:none;border:none;font-size:22px;cursor:pointer;padding:0 4px;color:var(--text);line-height:1">←</button>
+    <span style="font-size:17px;font-weight:900;color:var(--text)">설정</span>
+  </div>
+  <div style="background:white;margin:8px 16px;border-radius:14px;overflow:hidden;box-shadow:var(--shadow)">
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px">
+      <span style="font-size:15px;font-weight:500">로그인 시 최근 그룹 바로 가기</span>
+      <label class="toggle-switch">
+        <input type="checkbox" id="autoEnterToggle" onchange="setAutoEnter(this.checked)">
+        <span class="toggle-slider"></span>
+      </label>
+    </div>
+  </div>
+</div>
+
+<!-- 알림 관리 전체화면 -->
+<div class="full-screen" id="reminderScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="closeReminderScreen()">←</button>
+    <span class="full-screen-title">알림 관리</span>
+    <button onclick="openReminderAdd()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 14px;border-radius:12px;font-size:13px;cursor:pointer;font-weight:700">+ 추가</button>
+  </div>
+  <div style="padding:16px">
+    <div id="reminderList" style="display:flex;flex-direction:column;gap:10px"></div>
+  </div>
+</div>
+
+<!-- 알림 추가 모달 -->
+<div class="modal-overlay" id="reminderAddModal">
+  <div class="modal">
+    <h3 id="reminderModalTitle">알림 추가</h3>
+    <div class="ig"><label>제목</label><input type="text" id="remTitle" placeholder="예: 월세 입금, 용돈 지급"></div>
+    <div class="ig"><label>금액 (선택)</label><input type="text" id="remAmount" placeholder="예: 500,000" oninput="this.value=this.value.replace(/[^0-9]/g,'').replace(/\B(?=(\d{3})+(?!\d))/g,',')"></div>
+    <div class="ig"><label>날짜</label><input type="date" id="remDate" style="width:100%"></div>
+    <div class="ig">
+      <label>반복</label>
+      <div class="segment" id="remRepeatSeg">
+        <button class="seg-btn active" data-val="none" onclick="pickSeg(this,'remRepeat')">없음</button>
+        <button class="seg-btn" data-val="monthly" onclick="pickSeg(this,'remRepeat')">매월</button>
+        <button class="seg-btn" data-val="yearly" onclick="pickSeg(this,'remRepeat')">매년</button>
+      </div>
+      <input type="hidden" id="remRepeat" value="none">
+    </div>
+    <div class="ig">
+      <label>알림 시간 (복수 선택 가능)</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remPrevNight" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌙 전날 밤 10시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remMorning" style="width:18px;height:18px;accent-color:var(--blue)">
+          ☀️ 당일 아침 9시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="remAfternoon" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌤 당일 오후 1시
+        </label>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('reminderAddModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitReminder()">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 차용증 작성 전체화면 -->
+<div class="full-screen" id="iouScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="closeIOU()">←</button>
+    <span class="full-screen-title">차용증 작성</span>
+  </div>
+  <div style="padding:16px">
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--blue)">채권자 (빌려주는 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="iouCreditorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처</label><input type="tel" id="iouCreditorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="iouCreditorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--red)">채무자 (빌리는 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="iouDebtorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처</label><input type="tel" id="iouDebtorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="iouDebtorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">대출 조건</div>
+      <div class="ig"><label>금액 (원)</label><input type="number" id="iouAmount" placeholder="1000000" oninput="calcMonthlyInterest()"></div>
+      <div class="ig"><label>연 이자율 (%)</label><input type="number" id="iouRate" value="0" step="0.1" oninput="calcMonthlyInterest()"></div>
+      <div id="iouMonthlyInterest" style="font-size:13px;color:var(--text-sub);margin-top:-8px;margin-bottom:12px;padding-left:2px"></div>
+      <div class="ig"><label>차용일</label><input type="date" id="iouLoanDate" style="width:100%"></div>
+      <div class="ig"><label>상환일</label><input type="date" id="iouRepayDate" style="width:100%"></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:8px">채무자 서명</div>
+      <canvas id="signatureCanvas" width="400" height="120" style="width:100%;border:1px solid #E5E7EB;border-radius:8px;touch-action:none;background:white"></canvas>
+      <button onclick="clearSignature()" style="margin-top:8px;background:#F3F4F6;border:none;padding:6px 14px;border-radius:8px;font-size:13px;cursor:pointer">지우기</button>
+    </div>
+    <div style="background:#FEF3C7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400E;line-height:1.7">⚠️ 본 차용증은 당사자 간 약정 내용을 기록한 문서로, 법적 효력은 작성 방식 및 상황에 따라 달라질 수 있습니다. 완전한 법적 보호를 원하시는 경우 공증사무소 방문을 권장드립니다.</div>
+    <button onclick="generateIOU()" style="width:100%;background:var(--blue);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:10px;font-family:'Pretendard',-apple-system,sans-serif">📄 차용증 이미지 저장</button>
+    <button onclick="createLoanAccount()" id="iouLoanBtn" style="width:100%;background:var(--green);color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:24px;font-family:'Pretendard',-apple-system,sans-serif">🏦 대출 통장 만들기</button>
+  </div>
+</div>
+
+<!-- 차용증 캡처용 숨김 영역 -->
+<div id="iouPreview" style="position:fixed;left:-9999px;top:0;width:480px;background:white;font-family:'Pretendard',-apple-system,sans-serif"></div>
+
+<!-- 채무변제확인서 작성 전체화면 -->
+<div class="full-screen" id="debtRepayScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="document.getElementById('debtRepayScreen').style.display='none'">←</button>
+    <span class="full-screen-title">채무변제확인서 작성</span>
+  </div>
+  <div style="padding:16px">
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--blue)">채권자 (빌려준 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="drCreditorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처 (선택)</label><input type="tel" id="drCreditorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="drCreditorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px;color:var(--red)">채무자 (빌린 사람)</div>
+      <div class="ig"><label>이름</label><input type="text" id="drDebtorName" placeholder="홍길동"></div>
+      <div class="ig"><label>연락처 (선택)</label><input type="tel" id="drDebtorPhone" placeholder="010-0000-0000"></div>
+      <div class="ig"><label>주소 (선택)</label><input type="text" id="drDebtorAddr" placeholder="서울시 강남구..."></div>
+    </div>
+    <div style="background:white;border-radius:16px;padding:16px;margin-bottom:12px;box-shadow:var(--shadow)">
+      <div style="font-size:14px;font-weight:700;margin-bottom:12px">변제 내용</div>
+      <div class="ig"><label>원금 (원)</label><input type="number" id="drAmount" placeholder="1000000"></div>
+      <div class="ig"><label>차용일 (선택)</label><input type="date" id="drLoanDate" style="width:100%"></div>
+      <div class="ig"><label>변제완료일</label><input type="date" id="drRepayDate" style="width:100%"></div>
+      <div class="ig"><label>특이사항 (선택)</label><input type="text" id="drNote" placeholder="이자 포함 전액 변제 등"></div>
+    </div>
+    <div style="background:#FEF3C7;border-radius:12px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#92400E;line-height:1.7">⚠️ 본 확인서는 당사자 간 변제 사실을 기록한 문서로, 완전한 법적 보호를 위해 공증사무소 방문을 권장드립니다.</div>
+    <button onclick="generateDebtRepayment()" style="width:100%;background:#7C3AED;color:white;border:none;padding:14px;border-radius:14px;font-size:15px;font-weight:700;cursor:pointer;margin-bottom:24px;font-family:'Pretendard',-apple-system,sans-serif">📄 채무변제확인서 PDF 저장</button>
+  </div>
+</div>
+
+<!-- 가계부 전체화면 -->
+<div class="full-screen" id="ledgerScreen" style="display:none;flex-direction:column;background:#F5F6FA">
+  <div style="background:var(--blue);color:white;padding:12px 16px;display:flex;align-items:center;gap:8px;flex-shrink:0;position:sticky;top:0;z-index:10">
+    <button onclick="closeLedger()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">←</button>
+    <button onclick="ledgerPrevMonth()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">‹</button>
+    <span id="ledgerMonthTitle" style="font-size:16px;font-weight:900;flex:1;text-align:center"></span>
+    <button onclick="ledgerNextMonth()" style="background:none;border:none;color:white;font-size:22px;cursor:pointer;padding:0 4px;line-height:1">›</button>
+  </div>
+  <div style="background:var(--blue);color:white;padding:2px 16px 12px;display:flex;justify-content:space-between;align-items:center;flex-shrink:0">
+    <div id="ledgerTotal" style="font-size:13px;font-weight:700;opacity:0.9"></div>
+    <div style="display:flex;gap:6px;align-items:center">
+      <div style="display:flex;background:rgba(255,255,255,0.2);border-radius:8px;overflow:hidden">
+        <button id="ldgBtnCal" class="ldg-view-btn active" onclick="setLedgerView('calendar')" title="월별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="6" font-weight="900" fill="#111">MONTH</text></svg></button>
+        <button id="ldgBtnWeek" class="ldg-view-btn" onclick="setLedgerView('week')" title="주별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26" text-anchor="middle" font-family="Arial,sans-serif" font-size="6.5" font-weight="900" fill="#111">WEEK</text></svg></button>
+        <button id="ldgBtnList" class="ldg-view-btn" onclick="setLedgerView('list')" title="일별"><svg viewBox="0 0 32 34" width="26" height="26"><rect x="1" y="5" width="30" height="28" rx="3.5" fill="#EBEBEB" stroke="#111" stroke-width="1.8"/><path d="M1 8.5 Q1 5 4.5 5 H27.5 Q31 5 31 8.5 V14 H1 Z" fill="#F0604B"/><rect x="1" y="11" width="30" height="3" fill="#F0604B"/><line x1="4" y1="12" x2="28" y2="12" stroke="rgba(255,220,200,0.5)" stroke-width="1"/><rect x="6.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="14" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><rect x="21.5" y="1" width="4" height="8" rx="2" fill="white" stroke="#111" stroke-width="1.5"/><text x="16" y="26.5" text-anchor="middle" font-family="Arial,sans-serif" font-size="7" font-weight="900" fill="#111">DAY</text></svg></button>
+      </div>
+      <button id="ldgBtnMem" class="ldg-view-btn" onclick="setLedgerView('members')" style="border-radius:8px">👥</button>
+    </div>
+  </div>
+  <div id="ledgerContent" style="flex:1;overflow-y:auto"></div>
+</div>
+
+<!-- 가계부 날짜 입력 모달 -->
+<div id="ledgerDayModal" onclick="if(event.target===this)closeLedgerDay()" style="display:none;position:fixed;inset:0;z-index:400;background:rgba(0,0,0,0.5);align-items:flex-end;justify-content:center">
+  <div style="background:white;width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:20px 16px;max-height:88vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,20px)">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <h3 id="ledgerDayTitle" style="font-size:16px;font-weight:900;color:var(--text)"></h3>
+      <button onclick="closeLedgerDay()" style="background:none;border:none;font-size:22px;cursor:pointer;color:#9CA3AF;line-height:1">✕</button>
+    </div>
+    <div style="display:grid;grid-template-columns:65px 1fr 90px 24px;gap:4px;margin-bottom:6px;padding:0 2px">
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600">별칭</span>
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600">항목</span>
+      <span style="font-size:11px;color:var(--text-sub);font-weight:600;text-align:right">금액</span>
+      <span></span>
+    </div>
+    <div id="ledgerDayRows"></div>
+    <button onclick="addLedgerRow()" style="width:100%;background:#F3F4F6;border:none;border-radius:10px;padding:10px;font-size:14px;cursor:pointer;margin-top:6px;font-weight:700;font-family:inherit">+ 항목 추가</button>
+    <div style="display:flex;gap:8px;margin-top:12px">
+      <button onclick="closeLedgerDay()" style="flex:1;background:#F3F4F6;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">취소</button>
+      <button onclick="saveLedgerDay()" style="flex:2;background:var(--blue);color:white;border:none;padding:13px;border-radius:12px;font-size:14px;font-weight:700;cursor:pointer;font-family:inherit">저장</button>
+    </div>
+  </div>
+</div>
+
+<!-- 공지 내용 팝업 -->
+<div class="modal-overlay" id="noticePopupModal">
+  <div class="modal">
+    <h3 id="noticePopupTitle"></h3>
+    <div id="noticePopupContent" style="font-size:14px;color:var(--text);line-height:1.8;white-space:pre-wrap;max-height:300px;overflow-y:auto;margin-bottom:16px"></div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-primary" onclick="closeModal('noticePopupModal')">닫기</button>
     </div>
   </div>
 </div>
@@ -665,7 +1058,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 
 <div class="modal-overlay" id="addGyeAccountModal">
   <div class="modal">
-    <h3>계모임 통장 개설</h3>
+    <h3>모임 통장 개설</h3>
     <div class="ig"><label>통장명</label><input type="text" id="gyeAccName" placeholder="예: 친목계"></div>
     <div class="ig"><label>PIN (관리용)</label><input type="password" inputmode="numeric" maxlength="4" id="gyeAccPin"></div>
     <div class="ig"><label>개설일</label><input type="date" id="gyeAccDate" style="width:100%"></div>
@@ -882,7 +1275,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   <div class="modal">
     <h3 id="noticeModalTitle">공지 작성</h3>
     <div class="ig"><label>제목</label><input type="text" id="noticeTitle"></div>
-    <div class="ig"><label>내용</label><textarea id="noticeContent"></textarea></div>
+    <div class="ig"><label>내용</label><textarea id="noticeContent" style="min-height:140px;resize:vertical"></textarea></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('noticeModal')">취소</button>
       <button class="mbtn mbtn-primary" onclick="submitNotice()">저장</button>
@@ -905,10 +1298,9 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 <div class="modal-overlay" id="globalLinkModal">
   <div class="modal">
     <h3>공지사항 추가</h3>
-    <div class="ig"><label>아이콘</label><input type="text" id="glIcon" maxlength="2" placeholder="📢"></div>
     <div class="ig"><label>제목</label><input type="text" id="glTitle"></div>
     <div class="ig"><label>URL (선택)</label><input type="url" id="glUrl" placeholder="https://..."></div>
-    <div class="ig"><label>내용 (선택)</label><textarea id="glContent"></textarea></div>
+    <div class="ig"><label>내용 (선택)</label><textarea id="glContent" style="min-height:140px;resize:vertical"></textarea></div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('globalLinkModal')">취소</button>
       <button class="mbtn mbtn-primary" onclick="submitGlobalLink()">저장</button>
@@ -933,7 +1325,39 @@ const SB_KEY='sb_publishable_3B1-IKzYNazYswN91dtHsg_16Mb6lKY';
 const{createClient}=supabase;
 const db=createClient(SB_URL,SB_KEY);
 
+// Firebase 초기화
+firebase.initializeApp({
+  apiKey:"AIzaSyDyv9Cy7GAUlY78E7P0_sEINjYXlxsoXx4",
+  authDomain:"pocketbank-da202.firebaseapp.com",
+  projectId:"pocketbank-da202",
+  storageBucket:"pocketbank-da202.firebasestorage.app",
+  messagingSenderId:"290510794044",
+  appId:"1:290510794044:web:f3c2d4dba29ab58bdc8239"
+});
+
+async function initFCM(){
+  if(!('Notification' in window)||!('serviceWorker' in navigator))return;
+  try{
+    const permission=await Notification.requestPermission();
+    if(permission!=='granted')return;
+    const reg=await navigator.serviceWorker.register('/pocketbank/firebase-messaging-sw.js');
+    const messaging=firebase.messaging();
+    const token=await messaging.getToken({
+      vapidKey:'BK0Xq6wDT5r77xLF22KGt02TcRePPC_wkbZEeBcA-raIdIYRKEQWEP_kwPE0MgkM3CJ58EcXD1F0kQ2ULEWzu68',
+      serviceWorkerRegistration:reg
+    });
+    if(token&&currentUser){
+      await db.from('device_tokens').upsert({user_id:currentUser.id,token},{onConflict:'user_id,token'});
+    }
+  }catch(e){console.warn('FCM 초기화 실패:',e)}
+}
+
 let currentUser=null,currentGroup=null,currentGM=null;
+const SVG_DEPOSIT='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#4CAF50"/><path d="M10,6h4v6h3.5l-5.5,7-5.5-7H10z" fill="white"/></svg>';
+const SVG_WITHDRAW='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#F44336"/><path d="M10,18h4v-6h3.5l-5.5-7-5.5,7H10z" fill="white"/></svg>';
+const SVG_NOTICE='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#FFC107"/><circle cx="12" cy="6" r="1.3" fill="white"/><path d="M7,15.5L7,11Q7,7.5,12,7.5Q17,7.5,17,11L17,15.5Z" fill="white"/><rect x="5.5" y="15" width="13" height="2.5" rx="1" fill="white"/><ellipse cx="12" cy="19" rx="2" ry="1.5" fill="white"/></svg>';
+const SVG_GLOBAL='<svg viewBox="0 0 24 24" width="28" height="28"><circle cx="12" cy="12" r="12" fill="#2196F3"/><path d="M5.5,10L5.5,14L9,14L14,17.5L14,6.5L9,10Z" fill="white"/><circle cx="16" cy="9" r="1.2" fill="white"/><circle cx="17.5" cy="12" r="1.2" fill="white"/><circle cx="16" cy="15" r="1.2" fill="white"/></svg>';
+const SVG_NEW_BADGE='<svg viewBox="0 0 52 24" width="42" height="19" style="vertical-align:middle;margin-right:3px;flex-shrink:0"><path d="M4,1 L40,1 L51,12 L40,23 L4,23 Q1,23 1,20 L1,4 Q1,1 4,1 Z" fill="#F52B47" stroke="#111" stroke-width="1.8"/><text x="21" y="16.5" text-anchor="middle" font-weight="800" font-size="12" fill="white" font-family="Arial,sans-serif">NEW</text></svg>';
 let detailMember=null,detailAccount=null;
 let txAction=null,txAccountId=null;
 let editTxId=null,starsAction=null,rateAccId=null,interestAccId=null,adjustAccId=null;
@@ -947,6 +1371,8 @@ let gyeAccId=null; // for 계모임 통장 구성원 추가
 // ── Utils ──
 function fmt(n){return'₩'+Number(Math.round(n)).toLocaleString('ko-KR')}
 function fmtDate(d){const dt=new Date(d);const kst=new Date(dt.getTime()+9*60*60*1000);return`${kst.getFullYear()}/${kst.getMonth()+1}/${kst.getDate()} ${kst.getHours()}:${String(kst.getMinutes()).padStart(2,'0')}`}
+// 그룹별 별칭 우선, 없으면 닉네임 반환
+function gname(m){return(m&&(m.group_alias||(m.users&&m.users.nickname)||m.nickname))||''}
 function localDT(d){const dt=new Date(d);const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`}
 function todayStr(){const dt=new Date();const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
@@ -980,9 +1406,20 @@ function toggleAtMode(){
 }
 
 // ── Login/Register ──
-window.onload=()=>{
+window.onload=async()=>{
   const saved=localStorage.getItem('pb_uid');
   if(saved){document.getElementById('loginNickname').value=saved;document.getElementById('saveNick').checked=true}
+  const autoId=localStorage.getItem('pb_auto_login_id');
+  const autoPin=localStorage.getItem('pb_auto_login_pin');
+  const autoPwd=localStorage.getItem('pb_auto_login_pwd');
+  if(autoId){
+    document.getElementById('autoLogin').checked=true;
+    document.getElementById('loginNickname').value=autoId;
+    document.getElementById('loginPin').value=autoPin||'';
+    document.getElementById('loginPwd').value=autoPwd||'';
+    await doLogin();
+    return;
+  }
   // Swipe back for history screen
   setupSwipeBack();
   const urlParams=new URLSearchParams(window.location.search);
@@ -1052,9 +1489,19 @@ async function doLogin(){
     user.user_id=nick;
   }
   fill.style.width='100%';setTimeout(()=>{prog.style.display='none';fill.style.width='0%'},400);
-  if(document.getElementById('saveNick').checked)localStorage.setItem('pb_uid',nick);
+  if(document.getElementById('saveNick').checked||document.getElementById('autoLogin').checked)localStorage.setItem('pb_uid',nick);
   else localStorage.removeItem('pb_uid');
+  if(document.getElementById('autoLogin').checked){
+    localStorage.setItem('pb_auto_login_id',nick);
+    localStorage.setItem('pb_auto_login_pin',pin);
+    localStorage.setItem('pb_auto_login_pwd',pwd);
+  } else {
+    localStorage.removeItem('pb_auto_login_id');
+    localStorage.removeItem('pb_auto_login_pin');
+    localStorage.removeItem('pb_auto_login_pwd');
+  }
   currentUser=user;
+  initFCM();
   if(isLegacy){
     document.getElementById('setUserIdInput').value='';
     showModal('setUserIdModal');
@@ -1099,31 +1546,59 @@ async function doReg(){
 }
 
 // ── Group Select ──
-async function loadGroupSelect(){
+async function loadGroupSelect(skipAutoEnter){
   document.getElementById('loginWrap').style.display='none';
   document.getElementById('groupWrap').style.display='flex';
-  document.getElementById('groupSub').textContent=`${currentUser.nickname}님, 반가워요!`;
+  document.getElementById('groupSub').textContent=currentUser.nickname+'님, 반가워요!';
+  checkTodayReminders();
+  checkPendingInvites();
   const{data:gms}=await db.from('group_members').select('*,groups(*)').eq('user_id',currentUser.id);
   const list=document.getElementById('groupList');
-  if(!gms||!gms.length){list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
+  if(!gms||!gms.length){list.className='';list.innerHTML='<div class="empty"><div class="ei">👥</div>참여 중인 그룹이 없어요</div>';return}
+  // 자동입장 설정 확인
+  const autoEnter=!skipAutoEnter&&localStorage.getItem('pb_auto_enter')==='true';
+  const lastGroupId=localStorage.getItem('pb_last_group_'+currentUser.id);
+  if(autoEnter&&lastGroupId){
+    const lastGM=gms.find(function(m){return m.group_id===lastGroupId});
+    if(lastGM){selectGroup(lastGroupId,lastGM.role);return}
+  }
+  // 저장된 순서 적용, 없으면 생성일순
+  const savedOrder=JSON.parse(localStorage.getItem('pb_group_order_'+currentUser.id)||'[]');
+  if(savedOrder.length){
+    gms.sort(function(a,b){
+      const ai=savedOrder.indexOf(a.group_id),bi=savedOrder.indexOf(b.group_id);
+      if(ai===-1&&bi===-1)return 0;if(ai===-1)return 1;if(bi===-1)return -1;return ai-bi;
+    });
+  } else {
+    gms.sort(function(a,b){return new Date(a.groups.created_at)-new Date(b.groups.created_at)});
+  }
+  list.className='group-grid';
   list.innerHTML=gms.map(function(m){
-    const badge=m.role==='admin'?'<div class="group-role-badge">은행장</div>':'';
-    const actionBtn=m.role==='admin'
-      ?'<button onclick="event.stopPropagation();confirmDeleteGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">삭제</button>'
-      :'<button onclick="event.stopPropagation();confirmLeaveGroup(\''+m.group_id+'\')" style="background:#FEE2E2;border:none;border-radius:8px;padding:5px 10px;font-size:12px;color:#DC2626;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;flex-shrink:0;margin-left:6px">탈퇴</button>';
-    const groupAvatar=m.groups.photo
-      ?'<div class="group-icon" style="overflow:hidden;cursor:pointer" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"><img src="'+m.groups.photo+'" style="width:100%;height:100%;object-fit:cover;border-radius:12px"></div>'
-      :'<div class="group-icon" style="cursor:pointer" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')"><span style="font-size:20px">'+(typeIcon[m.groups.type]||'👥')+'</span></div>';
-    return'<div class="group-card" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')" style="position:relative">'
-      +groupAvatar
-      +'<div class="group-info">'
-      +'<div class="group-name">'+m.groups.name+'</div>'
-      +'<div class="group-meta">'+(typeLabel[m.groups.type]||'그룹')+'</div>'
-      +'</div>'+badge+actionBtn+'</div>';
+    const isAdmin=m.role==='admin';
+    const badge=isAdmin?'<div class="group-grid-badge">은행장</div>':'';
+    const actionBtn=isAdmin
+      ?'<button class="group-grid-action" onclick="event.stopPropagation();uploadGroupPhoto(\''+m.group_id+'\')">📷</button>'
+      :'';
+    const photoHtml=m.groups.photo
+      ?'<img src="'+m.groups.photo+'" style="width:100%;height:100%;object-fit:cover">'
+      :'<span style="font-size:40px">'+(typeIcon[m.groups.type]||'👥')+'</span>';
+    const uploadAttr='';
+    return'<div class="group-grid-card" data-group-id="'+m.group_id+'" onclick="selectGroup(\''+m.group_id+'\',\''+m.role+'\')">'
+      +'<div class="group-grid-photo" '+uploadAttr+'>'+photoHtml+'</div>'
+      +'<div class="group-grid-name">'+m.groups.name+'</div>'
+      +badge+actionBtn+'</div>';
   }).join('');
+  new Sortable(list,{
+    animation:150,delay:200,delayOnTouchOnly:true,
+    onEnd:function(){
+      const order=Array.from(list.querySelectorAll('.group-grid-card')).map(function(el){return el.dataset.groupId});
+      localStorage.setItem('pb_group_order_'+currentUser.id,JSON.stringify(order));
+    }
+  });
 }
 
 async function selectGroup(groupId,role){
+  localStorage.setItem('pb_last_group_'+currentUser.id,groupId);
   const{data:group}=await db.from('groups').select('*').eq('id',groupId).single();
   const{data:gm}=await db.from('group_members').select('*').eq('group_id',groupId).eq('user_id',currentUser.id).single();
   currentGroup=group;currentGM=gm;
@@ -1134,17 +1609,27 @@ async function selectGroup(groupId,role){
   if(role==='admin'){
     document.getElementById('tab-admin').style.display='flex';
     document.getElementById('noticeAddBtn').style.display='flex';
-    document.getElementById('etcAddBtn').style.display='flex';
+    // etcAddBtn removed
   } else {
     document.getElementById('tab-admin').style.display='none';
     document.getElementById('noticeAddBtn').style.display='flex';
-    document.getElementById('etcAddBtn').style.display='none';
+    // etcAddBtn removed
   }
   await loadHome();switchTab('home');
 }
 
-function changeGroup(){currentGroup=null;currentGM=null;document.getElementById('mainApp').style.display='none';loadGroupSelect()}
-function logout(){currentUser=null;currentGroup=null;document.getElementById('mainApp').style.display='none';document.getElementById('groupWrap').style.display='none';document.getElementById('loginWrap').style.display='flex';document.getElementById('loginPin').value=''}
+function changeGroup(){if(chatChannel){db.removeChannel(chatChannel);chatChannel=null;}currentGroup=null;currentGM=null;clearAllTabCache();document.getElementById('mainApp').style.display='none';loadGroupSelect(true)}
+function logout(){
+  localStorage.removeItem('pb_auto_login_id');
+  localStorage.removeItem('pb_auto_login_pin');
+  localStorage.removeItem('pb_auto_login_pwd');
+  currentUser=null;currentGroup=null;
+  document.getElementById('autoLogin').checked=false;
+  document.getElementById('mainApp').style.display='none';
+  document.getElementById('groupWrap').style.display='none';
+  document.getElementById('loginWrap').style.display='flex';
+  document.getElementById('loginPin').value='';
+}
 
 function showCreateGroup(){document.getElementById('grpName').value='';document.getElementById('grpPwd').value='';document.getElementById('grpType').value='family';document.querySelectorAll('#grpTypeSeg .seg-btn').forEach((b,i)=>{b.classList.toggle('active',i===0)});showModal('createGroupModal')}
 function showJoinGroup(){document.getElementById('joinCode').value='';document.getElementById('joinPwd').value='';showModal('joinGroupModal')}
@@ -1177,17 +1662,17 @@ async function joinGroup(){
 
 // ── Home ──
 async function loadHome(){
-  renderMyAvatar();await checkNoticeBadge();
+  renderMyAvatar();await checkNoticeBadge();checkLoanWarning();
   const isAdmin=currentGM.role==='admin';
   if(isAdmin){
-    document.getElementById('adminName').textContent=currentUser.nickname;
+    document.getElementById('adminName').textContent=currentGM.group_alias||currentUser.nickname;
     const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     let total=0;const summaries=[];
     if(members){
       const{data:allAccs}=await db.from('accounts').select('balance,user_id').eq('group_id',currentGroup.id);
       members.forEach(function(m){
         const bal=(allAccs||[]).filter(a=>a.user_id===m.user_id).reduce((s,a)=>s+a.balance,0);
-        total+=bal;summaries.push(m.users.nickname+': '+fmt(bal));
+        total+=bal;summaries.push(gname(m)+': '+fmt(bal));
       });
     }
     // 계모임은 공용 통장 잔액도 합산
@@ -1198,12 +1683,13 @@ async function loadHome(){
     }
     document.getElementById('adminTotal').textContent=fmt(total);
     if(currentGroup.type==='gye'){
-      document.getElementById('adminSummary').innerHTML='<button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">👥 구성원 보기</button><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
+      document.getElementById('adminSummary').innerHTML='<div style="display:flex;gap:8px"><button onclick="toggleMemberList()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700;display:inline-flex;align-items:center;gap:5px"><svg viewBox="0 0 28 20" width="18" height="13"><circle cx="6" cy="6" r="4.5" fill="#FCCB8F"/><path d="M0,20 Q0,14 6,14 Q12,14 12,20 Z" fill="#E8795C"/><circle cx="14" cy="5" r="5" fill="#FCCB8F"/><path d="M6,20 Q6,13 14,13 Q22,13 22,20 Z" fill="#7CC47A"/><circle cx="22" cy="6" r="4.5" fill="#FCCB8F"/><path d="M16,20 Q16,14 22,14 Q28,14 28,20 Z" fill="#6BAED6"/></svg> 구성원 보기</button><button onclick="openInviteModal()" style="background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:12px;cursor:pointer;font-family:\'Noto Sans KR\',sans-serif;font-weight:700">구성원 초대</button></div><div id="memberListWrap" style="display:none;margin-top:10px"></div>';
       window._gyeMembers=members;
     } else {
       document.getElementById('adminSummary').innerHTML=summaries.join('<br>');
     }
     // 최근 거래
+    document.getElementById('adminRecentActivity').innerHTML='';
     const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
     const accIds=(accs||[]).map(a=>a.id);
     if(accIds.length){
@@ -1212,7 +1698,7 @@ async function loadHome(){
 await loadRecentActivity('adminRecentActivity');
     }
  } else {
-    document.getElementById('memberName').textContent=currentUser.nickname;
+    document.getElementById('memberName').textContent=currentGM.group_alias||currentUser.nickname;
     let accs=[];
     const{data:myAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',currentUser.id);
     accs=myAccs||[];
@@ -1235,7 +1721,9 @@ function renderRecentTx(){
 function loadMoreTx(){recentTxShown+=10;renderRecentTx()}
 
 function renderMemberAccCards(accs,container){
-  if(!accs.length){container.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
+  if(!accs.length){
+    if(currentGroup.type!=='family') {container.innerHTML='';return}
+    container.innerHTML='<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';return}
   container.innerHTML=accs.map(a=>accCardHtml(a,false)).join('');
 }
 
@@ -1255,7 +1743,7 @@ function accCardHtml(a,isAdmin){
 function txHtml(tx,isAdmin){
   const isPlus=['deposit','interest','star_convert'].includes(tx.type);
   const isAdj=tx.type==='adjust';
-  const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
+  const icon={deposit:SVG_DEPOSIT,withdraw:SVG_WITHDRAW,interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
   const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
   const cls=isAdj?'adj':isPlus?'plus':'minus';
   const amtStr=isAdj?`→ ${fmt(tx.balance_after)}`:`${isPlus?'+':'-'}${fmt(tx.amount)}`;
@@ -1330,22 +1818,25 @@ if(!currentGroup.invite_code){
     const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     const container=document.getElementById('adminContent');
     if(!members||!members.length){container.innerHTML='<div class="empty"><div class="ei">👥</div>구성원을 추가해주세요</div>';return}
-    const cards=await Promise.all(members.map(async m=>{
-      const{data:accs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('user_id',m.user_id);
-      const total=(accs||[]).reduce((s,a)=>s+a.balance,0);
-      return{...m,total,accs:accs||[]};
-    }));
+    const{data:allAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id);
+    const accsByUser={};
+    (allAccs||[]).forEach(a=>{if(!accsByUser[a.user_id])accsByUser[a.user_id]=[];accsByUser[a.user_id].push(a);});
+    const cards=members.map(m=>{
+      const accs=accsByUser[m.user_id]||[];
+      const total=accs.reduce((s,a)=>s+a.balance,0);
+      return{...m,total,accs};
+    });
    container.innerHTML=cards.map(function(m){
       const joinDate=m.join_date?'개설 '+m.join_date:'';
       return'<div class="member-card" onclick="openMemberDetail(\''+m.user_id+'\')">'
         +avEl(m.users.photo,'👦',42)
         +'<div class="mc-info">'
-        +'<div class="mc-name">'+m.users.nickname+' <span style="font-size:11px;color:#9CA3AF;font-weight:400">@'+(m.users.user_id||'')+'</span> <span style="font-size:11px;color:#6B7280;font-weight:400">'+joinDate+'</span></div>'
+        +'<div class="mc-name">'+gname(m)+' <span style="font-size:11px;color:#9CA3AF;font-weight:400">@'+(m.users.user_id||'')+'</span> <span style="font-size:11px;color:#6B7280;font-weight:400">'+joinDate+'</span></div>'
         +'<div class="mc-balance">'+fmt(m.total)+'</div>'
         +'<div class="mc-meta">통장 '+m.accs.length+'개</div>'
         +'</div>'
         +'<div onclick="event.stopPropagation()">'
-        +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+        +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+gname(m)+'\')">권한위임</button>'
         +'</div></div>';
     }).join('');
     const inviteUrl='https://googis556.github.io/pocketbank?code='+currentGroup.invite_code;
@@ -1486,8 +1977,9 @@ async function openAccDetail(accId){
   document.getElementById('accDetailTxWrap').style.display='block';
 document.getElementById('accActions').style.display=fromAccount?'none':'flex';
 document.querySelectorAll('#accDetailScreen .act-row').forEach(el=>el.style.display=fromAccount?'none':'flex');
-document.querySelector('.del-btn-full').style.display=fromAccount?'none':'block';
+document.querySelector('#accDetailScreen .del-btn-full').style.display=fromAccount?'none':'block';
   document.getElementById('calBtn').style.display=fromAccount?'block':'none';
+  document.getElementById('xlsBtn').style.display=fromAccount?'block':'none';
   showScreen('accDetailScreen');
 }
 
@@ -1496,7 +1988,7 @@ async function loadGyeAccMembers(accId){
   const sortType=window.gyeSortType||'join';
   const list=document.getElementById('gyeAccMemberList');
   if(!gms||!gms.length){list.innerHTML='<div style="font-size:13px;color:#6B7280;padding:8px 0">구성원이 없어요</div>';renderPaymentTable([]);return}
-  if(sortType==='name') gms.sort((a,b)=>a.users.nickname.localeCompare(b.users.nickname));
+  if(sortType==='name') gms.sort((a,b)=>gname(a).localeCompare(gname(b)));
   // 구성원별 총 입금액 계산
   const{data:txs}=await db.from('transactions').select('*').eq('account_id',accId).eq('type','deposit');
   const memberTotals={};
@@ -1506,10 +1998,10 @@ async function loadGyeAccMembers(accId){
   list.innerHTML=gms.map(function(m){
     const total=memberTotals[m.user_id]||0;
     return'<div class="acc-member-row">'
-      +'<div class="acc-member-name">'+avEl(m.users.photo,'👦',28)+' '+m.users.nickname+'</div>'
+      +'<div class="acc-member-name">'+avEl(m.users.photo,'👦',28)+' '+gname(m)+'</div>'
       +'<div style="display:flex;align-items:center;gap:8px">'
       +'<div class="acc-member-bal">'+fmt(total)+'</div>'
-      +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+m.users.nickname+'\')">권한위임</button>'
+      +'<button class="delegate-btn" onclick="confirmDelegate(\''+m.user_id+'\',\''+gname(m)+'\')">권한위임</button>'
       +'</div></div>';
   }).join('');
   renderPaymentTable(gms,txs||[]);
@@ -1538,7 +2030,7 @@ function renderPaymentTable(members,txs){
       }).reduce(function(s,tx){return s+tx.amount},0);
       return'<td class="'+(paid?'paid':'unpaid')+'">'+(paid?'✅':'❌')+'</td>';
     }).join('');
-    return'<tr><td style="font-weight:700">'+(m.users?.nickname||m.nickname||'')+'</td>'+cells+'<td class="paid">'+fmt(total)+'</td></tr>';
+    return'<tr><td style="font-weight:700">'+gname(m)+'</td>'+cells+'<td class="paid">'+fmt(total)+'</td></tr>';
   }).join('');
   table.innerHTML=header+rows;
 }
@@ -1657,6 +2149,7 @@ async function submitTx(){
     showToast('🎉 목표 달성!');
   }
   closeModal('txModal');showToast('완료됐어요!');
+  invalidateTabCache('home','account');
   await openAccDetail(txAccountId);await loadHome();
 }
 
@@ -1671,7 +2164,7 @@ async function submitAdjust(){
   const note=document.getElementById('adjustNote').value||'잔액 수정';
   await db.from('transactions').insert({account_id:adjustAccId,type:'adjust',amount:0,balance_after:newBal,note});
   await db.from('accounts').update({balance:newBal}).eq('id',adjustAccId);
-  closeModal('adjustModal');showToast('수정됐어요!');await openAccDetail(adjustAccId);await loadHome();
+  closeModal('adjustModal');showToast('수정됐어요!');invalidateTabCache('home','account');await openAccDetail(adjustAccId);await loadHome();
 }
 
 function openEditTx(txId,type,amount,bal,note,dateStr,e){
@@ -1981,7 +2474,7 @@ async function delegateRole(userId){
   currentGM.role='member';
   document.getElementById('tab-admin').style.display='none';
   document.getElementById('noticeAddBtn').style.display='none';
-  document.getElementById('etcAddBtn').style.display='none';
+  // etcAddBtn removed
   switchTab('home');await loadHome();
 }
 async function confirmDeleteGroup(groupId){
@@ -2017,14 +2510,13 @@ async function confirmLeaveGroup(groupId){
   await loadGroupSelect();
 }
   function openAddGlobalLink(){
-  document.getElementById('glIcon').value='📢';
   document.getElementById('glTitle').value='';
   document.getElementById('glUrl').value='';
   document.getElementById('glContent').value='';
   showModal('globalLinkModal');
 }
 async function submitGlobalLink(){
-  const icon=document.getElementById('glIcon').value||'📢';
+  const icon='📢';
   const title=document.getElementById('glTitle').value.trim();
   const url=document.getElementById('glUrl').value.trim();
   const content=document.getElementById('glContent').value.trim();
@@ -2039,7 +2531,7 @@ async function deleteGlobalLink(id){
 }
   function openMyInfo(){
   document.getElementById('myInfoUserId').value=currentUser.user_id||'';
-  document.getElementById('myInfoNick').value='';
+  document.getElementById('myInfoGroupAlias').value=currentGM?.group_alias||'';
   document.getElementById('myInfoPin').value='';
   document.getElementById('myInfoPwd').value='';
   document.getElementById('myInfoPwdConfirm').value='';
@@ -2058,12 +2550,11 @@ function toggleLoginFields(){
 }
 
 async function submitMyInfo(){
-  const newNick=document.getElementById('myInfoNick').value.trim();
+  const groupAlias=document.getElementById('myInfoGroupAlias').value.trim();
   const pin=document.getElementById('myInfoPin').value;
   const pwd=document.getElementById('myInfoPwd').value;
   const pwdConfirm=document.getElementById('myInfoPwdConfirm').value;
   const upd={login_type:document.getElementById('myLoginType').value};
-  if(newNick) upd.nickname=newNick;
   if(pin){
     if(pin.length!==4){showToast('PIN은 4자리여야 해요');return}
     upd.pin=pin;
@@ -2073,9 +2564,11 @@ async function submitMyInfo(){
     upd.password=pwd;
   }
   await db.from('users').update(upd).eq('id',currentUser.id);
-  if(newNick) currentUser.nickname=newNick;
+  await db.from('group_members').update({group_alias:groupAlias||null}).eq('id',currentGM.id);
+  currentGM.group_alias=groupAlias||null;
   showToast('저장됐어요!');
   closeModal('myInfoModal');
+  invalidateTabCache('home');switchTab('home');
 }
   function copyInviteLink(url){
   navigator.clipboard.writeText(url).then(function(){
@@ -2109,14 +2602,14 @@ async function regenInviteCode(){
     if(!accs||!accs.length) continue;
     accs.forEach(function(a){
       html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
-        +'<div class="acc-name">'+m.users.nickname+' · '+a.name+'</div>'
+        +'<div class="acc-name">'+gname(m)+' · '+a.name+'</div>'
         +'<div class="acc-balance">'+fmt(a.balance)+'</div>'
         +'<div class="acc-meta">연 '+a.interest_rate+'% '+methodLabel(a.interest_method)+'</div>'
         +'</div>';
     });
   }
   if(currentGroup.type==='gye'){
-    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null);
+    const{data:gyeAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).is('user_id',null).neq('type','loan');
     (gyeAccs||[]).forEach(function(a){
       html+='<div class="account-card" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
         +'<div class="acc-name">📒 '+a.name+'</div>'
@@ -2125,6 +2618,16 @@ async function regenInviteCode(){
         +'</div>';
     });
   }
+  // 대출 통장
+  const{data:loanAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id).eq('type','loan');
+  (loanAccs||[]).forEach(function(a){
+    const balClass=a.balance<0?'acc-balance loan':'acc-balance';
+    html+='<div class="account-card" style="border-left-color:#DC2626" onclick="currentTab=\'account\';openAccDetail(\''+a.id+'\')">'
+      +'<div class="acc-name">💸 '+a.name+'</div>'
+      +'<div class="'+balClass+'">'+fmt(a.balance)+'</div>'
+      +'<div class="acc-meta">연 '+a.interest_rate+'% 차용</div>'
+      +'</div>';
+  });
   list.innerHTML=html||'<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';
 }
 async function loadAllTransactions(){
@@ -2164,12 +2667,13 @@ async function loadNotices(){
     const isRead=readIds.has(n.id);const isLiked=likedIds.has(n.id);
     const lc=likeCnt[n.id]||0;const cc=cmtCnt[n.id]||0;
     const border=!isRead?'border-left:3px solid #D97706':'';
-    const newBadge=!isRead?'🆕 ':'';
+    const newBadge=!isRead?SVG_NEW_BADGE:'';
     const canEdit=isAdmin||n.author_id===currentUser.id;
 const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+'\',\''+n.title.replace(/'/g,"\\'")+'\',\''+(n.content||'').replace(/'/g,"\\'")+'\')">✏️</button><button class="n-del" onclick="confirmDeleteNotice(\''+n.id+'\')">🗑️</button>':'';
+    const nid='nc-'+n.id;
     return'<div class="notice-card" style="'+border+'">'
-      +'<div class="n-title">'+newBadge+n.title+'</div>'
-      +'<div class="n-content">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
+      +'<div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+newBadge+n.title+'</div>'
+      +'<div class="n-content" id="'+nid+'" onclick="toggleNoticeExpand(\''+nid+'\')">'+(n.content||'').replace(/\n/g,'<br>')+'</div>'
       +'<div class="n-meta"><span>'+fmtDate(n.created_at)+'</span><span>❤️'+lc+' 💬'+cc+'</span></div>'
       +'<div class="n-actions">'
       +'<button class="like-btn'+(isLiked?' liked':'')+'" onclick="toggleLike(\''+n.id+'\','+isLiked+')">❤️ '+lc+'</button>'
@@ -2182,6 +2686,7 @@ const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+
   const unread=notices.filter(n=>!readIds.has(n.id));
   if(unread.length){await db.from('notice_reads').upsert(unread.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});await checkNoticeBadge()}
 }
+function toggleNoticeExpand(id){document.getElementById(id).classList.toggle('expanded')}
 async function toggleLike(noticeId,isLiked){
   if(isLiked) await db.from('notice_likes').delete().eq('notice_id',noticeId).eq('user_id',currentUser.id);
   else await db.from('notice_likes').insert({notice_id:noticeId,user_id:currentUser.id});
@@ -2209,7 +2714,7 @@ async function submitNotice(){
   if(!title){showToast('제목을 입력해주세요');return}
   if(editNoticeId) await db.from('notices').update({title,content,updated_at:new Date()}).eq('id',editNoticeId);
   else await db.from('notices').insert({group_id:currentGroup.id,author_id:currentUser.id,title,content});
-  closeModal('noticeModal');showToast('저장됐어요!');await loadNotices();
+  closeModal('noticeModal');showToast('저장됐어요!');invalidateTabCache('notice');await loadNotices();
 }
 function confirmDeleteNotice(id){if(!confirm('이 공지를 삭제할까요?'))return;db.from('notices').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadNotices()})}
 async function markAllRead(){
@@ -2230,17 +2735,19 @@ async function checkNoticeBadge(){
 // ── Links ──
 async function loadLinks(){
   // 글로벌 링크 로드
-  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:true});
+  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false});
   const isManager=currentUser.nickname==='manager_1';
   const gc=document.getElementById('globalLinkList');
   if(glinks&&glinks.length){
     gc.innerHTML='<div class="sec-title" style="margin-bottom:8px">공지사항</div>'
       +glinks.map(function(l){
         const delBtn=isManager?'<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>':'';
+        const glNew=(new Date()-new Date(l.created_at))<7*24*60*60*1000?SVG_NEW_BADGE:'';
+        const glid='gc-'+l.id;
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title">'+(l.icon||'📢')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'" onclick="toggleNoticeExpand(\''+glid+'\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join('');
   } else {
@@ -2252,25 +2759,15 @@ async function loadLinks(){
     gc.innerHTML='<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px"><div class="sec-title" style="margin-bottom:0">공지사항</div><button class="add-btn" onclick="openAddGlobalLink()">+</button></div>'
       +(glinks&&glinks.length?glinks.map(function(l){
         const delBtn='<button onclick="deleteGlobalLink(\''+l.id+'\')" style="background:none;border:none;font-size:15px;cursor:pointer;opacity:0.35">🗑️</button>';
+        const glNew=(new Date()-new Date(l.created_at))<7*24*60*60*1000?SVG_NEW_BADGE:'';
+        const glid='gc-'+l.id;
         if(l.url){
           return'<div class="link-card"><div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div><div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;margin-top:2px">'+l.url+'</div></div><div style="display:flex;gap:6px"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+delBtn+'</div></div>';
         } else {
-          return'<div class="notice-card"><div class="n-title">'+(l.icon||'📢')+' '+l.title+'</div><div class="n-content">'+(l.content||'')+'</div>'+delBtn+'</div>';
+          return'<div class="notice-card"><div class="n-title" style="display:flex;align-items:center;flex-wrap:wrap;gap:2px">'+((l.icon||'📢')==='📢'?SVG_GLOBAL:'<span>'+l.icon+'</span>')+' '+glNew+l.title+'</div><div class="n-content" id="'+glid+'" onclick="toggleNoticeExpand(\''+glid+'\')">'+(l.content||'')+'</div>'+delBtn+'</div>';
         }
       }).join(''):'');
   }
-  const{data:links}=await db.from('links').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:true});
-  const isAdmin=currentGM.role==='admin';
-  const container=document.getElementById('linkList');
-  if(!links||!links.length){container.innerHTML='<div class="empty"><div class="ei">🔗</div>링크가 없어요</div>';return}
-  container.innerHTML=links.map(function(l){
-    const adminBtns=isAdmin?'<button class="link-edt" onclick="openEditLink(\''+l.id+'\',\''+(l.icon||'').replace(/'/g,"\\'")+'\',\''+l.title.replace(/'/g,"\\'")+'\',\''+l.url.replace(/'/g,"\\'")+'\')">✏️</button><button class="link-del" onclick="confirmDeleteLink(\''+l.id+'\')">🗑️</button>':'';
-    return'<div class="link-card">'
-      +'<div style="font-size:22px;flex-shrink:0">'+(l.icon||'🔗')+'</div>'
-      +'<div style="flex:1;min-width:0"><div style="font-size:14px;font-weight:700">'+l.title+'</div><div style="font-size:11px;color:#6B7280;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-top:2px">'+l.url+'</div></div>'
-      +'<div style="display:flex;gap:6px;flex-shrink:0"><button class="link-go" onclick="window.open(\''+l.url+'\',\'_blank\')">열기</button>'+adminBtns+'</div>'
-      +'</div>';
-  }).join('');
 }
 function openAddLink(){editLinkId=null;document.getElementById('linkModalTitle').textContent='링크 추가';document.getElementById('linkIcon').value='🔗';document.getElementById('linkTitleInput').value='';document.getElementById('linkUrl').value='';showModal('linkModal')}
 function openEditLink(id,icon,title,url){editLinkId=id;document.getElementById('linkModalTitle').textContent='링크 수정';document.getElementById('linkIcon').value=icon;document.getElementById('linkTitleInput').value=title;document.getElementById('linkUrl').value=url;showModal('linkModal')}
@@ -2286,6 +2783,50 @@ async function submitLink(){
 function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;db.from('links').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadLinks()})}
 
 let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[];
+function openExcelExport(){
+  const today=new Date();
+  const firstDay=new Date(today.getFullYear(),today.getMonth(),1).toISOString().split('T')[0];
+  const todayStr=today.toISOString().split('T')[0];
+  document.getElementById('xlsFrom').value=firstDay;
+  document.getElementById('xlsTo').value=todayStr;
+  showModal('excelModal');
+}
+async function downloadExcel(){
+  const from=document.getElementById('xlsFrom').value;
+  const to=document.getElementById('xlsTo').value;
+  if(!from||!to){showToast('기간을 입력해주세요');return}
+  if(from>to){showToast('시작일이 종료일보다 늦을 수 없어요');return}
+  showToast('준비 중...');
+  const fromISO=from+'T00:00:00+09:00';
+  const toISO=to+'T23:59:59+09:00';
+  const{data:txs}=await db.from('transactions').select('*').eq('account_id',detailAccount.id).gte('created_at',fromISO).lte('created_at',toISO).order('created_at',{ascending:true});
+  if(!txs||!txs.length){showToast('해당 기간에 거래내역이 없어요');return}
+  const typeLabel={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'};
+  const rows=txs.map(function(tx){
+    const kst=new Date(new Date(tx.created_at).getTime()+9*60*60*1000);
+    const dateStr=kst.getFullYear()+'-'+String(kst.getMonth()+1).padStart(2,'0')+'-'+String(kst.getDate()).padStart(2,'0');
+    const timeStr=String(kst.getHours()).padStart(2,'0')+':'+String(kst.getMinutes()).padStart(2,'0');
+    const isPlus=['deposit','interest'].includes(tx.type);
+    const isAdj=tx.type==='adjust';
+    return{
+      '날짜':dateStr,
+      '시간':timeStr,
+      '구분':typeLabel[tx.type]||tx.type,
+      '입금':isPlus?tx.amount:'',
+      '출금':(!isPlus&&!isAdj)?tx.amount:'',
+      '잔액':tx.balance_after,
+      '메모':tx.note||''
+    };
+  });
+  const ws=XLSX.utils.json_to_sheet(rows);
+  const colWidths=[{wch:12},{wch:8},{wch:10},{wch:14},{wch:14},{wch:14},{wch:24}];
+  ws['!cols']=colWidths;
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,'거래내역');
+  const accName=(detailAccount.name||'통장').replace(/[\/\\:*?"<>|]/g,'_');
+  XLSX.writeFile(wb,accName+'_'+from+'_'+to+'.xlsx');
+  closeModal('excelModal');
+}
 async function openCalendar(){
   calAccId=detailAccount.id;
   calYear=new Date().getFullYear();calMonth=new Date().getMonth();
@@ -2367,37 +2908,55 @@ function showDayDetail(day){
     wrap.style.display='none';
   }
 } 
+const _recentPopupData={};
   async function loadRecentActivity(containerId){
   const container=document.getElementById(containerId);
   if(!container)return;
-  const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
+  const groupId=currentGroup.id;
+  const{data:accs}=await db.from('accounts').select('id').eq('group_id',groupId);
+  if(currentGroup.id!==groupId)return;
   const accIds=(accs||[]).map(a=>a.id);
   let items=[];
   if(accIds.length){
     const{data:txs}=await db.from('transactions').select('*').in('account_id',accIds).order('created_at',{ascending:false}).limit(5);
+    if(currentGroup.id!==groupId)return;
     (txs||[]).forEach(function(tx){
       const isPlus=['deposit','interest','star_convert'].includes(tx.type);
-      const icon={deposit:'💰',withdraw:'💸',interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
+      const icon={deposit:SVG_DEPOSIT,withdraw:SVG_WITHDRAW,interest:'📈',adjust:'✏️',star_convert:'⭐'}[tx.type]||'•';
       const label={deposit:'입금',withdraw:'출금',interest:'이자',adjust:'잔액수정',star_convert:'별전환'}[tx.type]||tx.type;
       items.push({time:new Date(tx.created_at),html:'<div class="tx-item"><div class="tx-icon">'+icon+'</div><div class="tx-info"><div class="tx-note">'+(tx.note||label)+'</div><div class="tx-date">'+fmtDate(tx.created_at)+'</div></div><div class="tx-right"><div class="tx-amt '+(isPlus?'plus':'minus')+'">'+fmt(tx.amount)+'</div></div></div>'});
     });
   }
-  const{data:notices}=await db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false}).limit(3);
+  const{data:notices}=await db.from('notices').select('*').eq('group_id',groupId).order('created_at',{ascending:false}).limit(3);
+  if(currentGroup.id!==groupId)return;
   (notices||[]).forEach(function(n){
-    items.push({time:new Date(n.created_at),html:'<div class="tx-item"><div class="tx-icon">🔔</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+    const key='n_'+n.id;
+    _recentPopupData[key]={title:n.title||'',content:n.content||''};
+    items.push({time:new Date(n.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showRecentPopup(\''+key+'\')"><div class="tx-icon">'+SVG_NOTICE+'</div><div class="tx-info"><div class="tx-note">'+n.title+'</div><div class="tx-date">'+fmtDate(n.created_at)+'</div></div></div>'});
+  });
+  const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false}).limit(3);
+  if(currentGroup.id!==groupId)return;
+  (glinks||[]).forEach(function(g){
+    const key='g_'+g.id;
+    _recentPopupData[key]={title:g.title||'',content:g.content||''};
+    items.push({time:new Date(g.created_at),html:'<div class="tx-item" style="cursor:pointer" onclick="showRecentPopup(\''+key+'\')"><div class="tx-icon">📢</div><div class="tx-info"><div class="tx-note">'+g.title+'</div><div class="tx-date">'+fmtDate(g.created_at)+'</div></div></div>'});
   });
   items.sort(function(a,b){return b.time-a.time});
   items=items.slice(0,7);
   container.innerHTML=items.length?'<div class="tx-list">'+items.map(function(i){return i.html}).join('')+'</div>':'';
 }
+function showRecentPopup(key){
+  const d=_recentPopupData[key];if(!d)return;
+  showNoticePopup(d.title,d.content);
+}
   async function toggleMemberListForMember(){
   const wrap=document.getElementById('memberListForMember');
   if(wrap.style.display==='none'){
     wrap.style.display='block';
-    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    const{data:gms}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).order('role',{ascending:true});
     wrap.innerHTML='<div class="card">'+(gms||[]).map(function(m){
     const av=m.users.photo?'<div class="avatar" style="width:36px;height:36px;cursor:pointer" onclick="openPhotoOverlay(\''+m.users.photo+'\')"><img src="'+m.users.photo+'"></div>':avEl(null,'👦',36);
-return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+m.users.nickname+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span></div>';
+return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border-bottom:1px solid #F3F4F6">'+av+'<span style="font-size:14px;font-weight:700">'+gname(m)+'</span><span style="font-size:11px;color:#9CA3AF">@'+(m.users.user_id||'')+'</span>'+(m.role==='admin'?'<span style="font-size:11px;color:var(--blue);font-weight:700;margin-left:auto">은행장</span>':'')+'</div>';
     }).join('')+'</div>';
   } else {
     wrap.style.display='none';
@@ -2410,6 +2969,13 @@ return'<div style="display:flex;align-items:center;gap:10px;padding:8px 0;border
 }
 function closePhotoOverlay(){
   document.getElementById('photoOverlay').style.display='none';
+}
+function downloadOverlayPhoto(){
+  const src=document.getElementById('photoOverlayImg').src;
+  const a=document.createElement('a');
+  a.href=src;
+  a.download='photo_'+Date.now()+'.jpg';
+  a.click();
 }
   let uploadGroupId=null;
 function uploadGroupPhoto(groupId){
@@ -2428,7 +2994,7 @@ async function handleGroupPhotoUpload(e){
   reader.readAsDataURL(file);e.target.value='';
 }
 // ── Refresh FAB ──
-function refreshCurrentTab(){switchTab(currentTab)}
+function refreshCurrentTab(){invalidateTabCache(currentTab);switchTab(currentTab)}
 
 // ── Swipe back for history ──
 function setupSwipeBack(){
@@ -2443,6 +3009,19 @@ function setupSwipeBack(){
   });
 }
 
+function showNoticePopup(title,content){
+  document.getElementById('noticePopupTitle').textContent=title;
+  document.getElementById('noticePopupContent').innerHTML=(content||'').replace(/\n/g,'<br>');
+  showModal('noticePopupModal');
+}
+
+// ── Tab Cache ──
+const tabLastLoaded={};
+const CACHE_TTL=30000;
+function isCacheFresh(tab){return tabLastLoaded[tab]&&(Date.now()-tabLastLoaded[tab]<CACHE_TTL);}
+function invalidateTabCache(...tabs){tabs.forEach(t=>delete tabLastLoaded[t]);}
+function clearAllTabCache(){Object.keys(tabLastLoaded).forEach(k=>delete tabLastLoaded[k]);}
+
 // ── Tab ──
 function switchTab(tab){
   currentTab=tab;
@@ -2455,34 +3034,877 @@ function switchTab(tab){
 
   if(tab==='home'){
     showScreen(isAdmin?'adminHomeScreen':'memberHomeScreen');
-    loadHome();
     historyBackBtn.style.display='none';
+    if(!isCacheFresh('home')){loadHome();tabLastLoaded['home']=Date.now();}
   } else if(tab==='account'){
     if(isAdmin){
       showScreen('adminAccListScreen');
       historyBackBtn.style.display='none';
-      loadAdminAccList();
+      if(!isCacheFresh('account')){loadAdminAccList();tabLastLoaded['account']=Date.now();}
     } else {
       showScreen('myAccScreen');
-      loadMyAccounts();
+      if(!isCacheFresh('account')){loadMyAccounts();tabLastLoaded['account']=Date.now();}
     }
   } else if(tab==='admin'){
-    showScreen('adminScreen');loadAdminScreen();
+    showScreen('adminScreen');
+    if(!isCacheFresh('admin')){loadAdminScreen();tabLastLoaded['admin']=Date.now();}
   } else if(tab==='notice'){
-    showScreen('noticeScreen');loadNotices();
+    showScreen('noticeScreen');
+    if(!isCacheFresh('notice')){loadNotices();tabLastLoaded['notice']=Date.now();}
   } else if(tab==='etc'){
-    showScreen('etcScreen');loadLinks();
+    showScreen('etcScreen');
+    if(!isCacheFresh('etc')){loadLinks();tabLastLoaded['etc']=Date.now();}
+    const iouSection=document.getElementById('iouEtcSection');
+    if(iouSection) iouSection.style.display=currentGroup&&currentGroup.type==='family'?'none':'block';
   } else if(tab==='history'){
     showScreen('historyScreen');
     historyBackBtn.style.display='flex';
-    loadAllTransactions();
+    if(!isCacheFresh('history')){loadAllTransactions();tabLastLoaded['history']=Date.now();}
   }
 }
+
+// ── 구성원 초대 ──
+let pendingInviteId=null;
+function openInviteModal(){
+  document.getElementById('inviteUserId').value='';
+  showModal('inviteModal');
+}
+async function submitInvite(){
+  const uid=document.getElementById('inviteUserId').value.trim().toLowerCase();
+  if(!uid){showToast('아이디를 입력해주세요');return}
+  if(!currentGroup){showToast('그룹을 선택해주세요');return}
+  const{data:target}=await db.from('users').select('id,nickname').eq('user_id',uid).single();
+  if(!target){showToast('존재하지 않는 아이디예요');return}
+  // 이미 구성원인지 확인
+  const{data:existing}=await db.from('group_members').select('id').eq('group_id',currentGroup.id).eq('user_id',target.id).single();
+  if(existing){showToast('이미 구성원이에요');return}
+  // 이미 초대된지 확인
+  const{data:dup}=await db.from('invitations').select('id').eq('group_id',currentGroup.id).eq('invitee_id',target.id).eq('status','pending').single();
+  if(dup){showToast('이미 초대를 보냈어요');return}
+  await db.from('invitations').insert({group_id:currentGroup.id,inviter_id:currentUser.id,invitee_id:target.id});
+  closeModal('inviteModal');
+  showToast(target.nickname+'님께 초대를 보냈어요!');
+}
+async function checkPendingInvites(){
+  if(!currentUser)return;
+  const{data:invites}=await db.from('invitations').select('*,groups(name),users!invitations_inviter_id_fkey(nickname)').eq('invitee_id',currentUser.id).eq('status','pending').limit(1);
+  if(!invites||!invites.length)return;
+  const inv=invites[0];
+  pendingInviteId=inv.id;
+  document.getElementById('inviteReceiveMsg').textContent=
+    '"'+inv.groups.name+'" 그룹에\n'+inv.users.nickname+'님이 초대했어요.\n수락할까요?';
+  showModal('inviteReceiveModal');
+}
+async function acceptInvite(){
+  if(!pendingInviteId)return;
+  const{data:inv}=await db.from('invitations').select('*').eq('id',pendingInviteId).single();
+  if(!inv)return;
+  await db.from('group_members').insert({group_id:inv.group_id,user_id:currentUser.id,role:'member'});
+  await db.from('invitations').update({status:'accepted'}).eq('id',pendingInviteId);
+  closeModal('inviteReceiveModal');
+  showToast('그룹에 참여했어요!');
+  pendingInviteId=null;
+  await loadGroupSelect();
+}
+async function declineInvite(){
+  if(!pendingInviteId)return;
+  await db.from('invitations').update({status:'declined'}).eq('id',pendingInviteId);
+  closeModal('inviteReceiveModal');
+  pendingInviteId=null;
+  // 다음 초대 확인
+  setTimeout(checkPendingInvites,300);
+}
+
+// ── MY 메뉴 ──
+// ── Chat ──
+let chatChannel=null;
+let chatUnread=0;
+async function openChat(){
+  document.getElementById('chatScreen').style.display='flex';
+  document.getElementById('chatGroupName').textContent=(currentGroup?.name||'채팅')+' 채팅';
+  chatUnread=0;
+  document.getElementById('chatUnreadBadge').style.display='none';
+  await loadChatMessages();
+  subscribeChatRealtime();
+  scrollChatBottom();
+}
+function closeChat(){
+  document.getElementById('chatScreen').style.display='none';
+  if(chatChannel){db.removeChannel(chatChannel);chatChannel=null;}
+}
+async function loadChatMessages(){
+  const{data:msgs}=await db.from('messages').select('*,users(nickname,photo,user_id)').eq('group_id',currentGroup.id).order('created_at',{ascending:true}).limit(100);
+  renderChatMessages(msgs||[]);
+}
+function renderChatMessages(msgs){
+  const container=document.getElementById('chatMessages');
+  if(!msgs.length){container.innerHTML='<div style="text-align:center;color:#9CA3AF;font-size:13px;padding:40px 0">첫 메시지를 보내보세요 👋</div>';return}
+  let html='';
+  let lastDate='';
+  msgs.forEach(function(m){
+    const kst=new Date(new Date(m.created_at).getTime()+9*60*60*1000);
+    const dateStr=kst.getFullYear()+'.'+(kst.getMonth()+1)+'.'+kst.getDate();
+    const timeStr=String(kst.getHours()).padStart(2,'0')+':'+String(kst.getMinutes()).padStart(2,'0');
+    if(dateStr!==lastDate){
+      html+='<div style="text-align:center;font-size:11px;color:#9CA3AF;margin:8px 0">'+dateStr+'</div>';
+      lastDate=dateStr;
+    }
+    const isMine=m.user_id===currentUser.id;
+    const av=m.users?.photo?'<img src="'+m.users.photo+'">':'<span style="font-size:13px">😊</span>';
+    const nameEl=!isMine?'<div class="msg-name">'+(m.users?.nickname||'')+'</div>':'';
+    const isPhoto=!!m.image_url;
+    const bubbleContent=isPhoto
+      ?'<img src="'+m.image_url+'" onclick="openPhotoOverlay(\''+m.image_url+'\')">'
+      :(m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+    const bubbleClass='msg-bubble '+(isPhoto?'photo':(isMine?'mine':'other'));
+    html+='<div class="msg-row'+(isMine?' mine':'')+'">'
+      +(isMine?'':'<div class="msg-avatar">'+av+'</div>')
+      +'<div style="flex:1;min-width:0">'
+      +nameEl
+      +'<div style="display:flex;align-items:flex-end;gap:4px;'+(isMine?'flex-direction:row-reverse':'')+'">'
+      +'<div class="'+bubbleClass+'">'+bubbleContent+'</div>'
+      +'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">'+timeStr+'</span>'
+      +'</div>'
+      +'</div>'
+      +'</div>';
+  });
+  container.innerHTML=html;
+  scrollChatBottom();
+}
+function scrollChatBottom(){
+  const el=document.getElementById('chatMessages');
+  if(el) el.scrollTop=el.scrollHeight;
+}
+function subscribeChatRealtime(){
+  if(chatChannel){db.removeChannel(chatChannel);chatChannel=null;}
+  chatChannel=db.channel('chat_'+currentGroup.id)
+    .on('postgres_changes',{event:'INSERT',schema:'public',table:'messages',filter:'group_id=eq.'+currentGroup.id},async function(payload){
+      const{data:full}=await db.from('messages').select('*,users(nickname,photo,user_id)').eq('id',payload.new.id).single();
+      if(!full)return;
+      if(full.user_id===currentUser.id)return; // 내가 보낸 건 이미 표시됨
+      if(document.getElementById('chatScreen').style.display==='flex'){
+        appendChatMessage(full);scrollChatBottom();
+      } else {
+        chatUnread++;
+        const badge=document.getElementById('chatUnreadBadge');
+        badge.textContent=chatUnread>99?'99+':chatUnread;
+        badge.style.display='flex';
+      }
+    }).subscribe();
+}
+function appendChatMessage(m){
+  const container=document.getElementById('chatMessages');
+  const empty=container.querySelector('div[style*="첫 메시지"]');
+  if(empty)container.innerHTML='';
+  const isMine=m.user_id===currentUser.id;
+  const kst=new Date(new Date(m.created_at).getTime()+9*60*60*1000);
+  const timeStr=String(kst.getHours()).padStart(2,'0')+':'+String(kst.getMinutes()).padStart(2,'0');
+  const av=m.users?.photo?'<img src="'+m.users.photo+'">':'<span style="font-size:13px">😊</span>';
+  const nameEl=!isMine?'<div class="msg-name">'+(m.users?.nickname||'')+'</div>':'';
+  const bubbleContent=m.image_url
+    ?'<img src="'+m.image_url+'" onclick="openPhotoOverlay(\''+m.image_url+'\')">'
+    :(m.content||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/\n/g,'<br>');
+  const div=document.createElement('div');
+  div.className='msg-row'+(isMine?' mine':'');
+  div.innerHTML=(isMine?'':'<div class="msg-avatar">'+av+'</div>')
+    +'<div style="flex:1;min-width:0">'
+    +nameEl
+    +'<div style="display:flex;align-items:flex-end;gap:4px;'+(isMine?'flex-direction:row-reverse':'')+'">'
+    +'<div class="msg-bubble '+(m.image_url?'photo':(isMine?'mine':'other'))+'">'+bubbleContent+'</div>'
+    +'<span style="font-size:10px;color:#9CA3AF;flex-shrink:0">'+timeStr+'</span>'
+    +'</div></div>';
+  container.appendChild(div);
+}
+async function sendChatMessage(){
+  const input=document.getElementById('chatInput');
+  const content=input.value.trim();
+  if(!content)return;
+  input.value='';input.style.height='auto';
+  input.focus();
+  // 즉시 화면에 표시 (Realtime 대기 없이)
+  const tempMsg={id:'tmp_'+Date.now(),group_id:currentGroup.id,user_id:currentUser.id,content:content,created_at:new Date().toISOString(),image_url:null,users:{nickname:currentUser.nickname,photo:currentUser.photo,user_id:currentUser.id}};
+  appendChatMessage(tempMsg);scrollChatBottom();
+  await db.from('messages').insert({group_id:currentGroup.id,user_id:currentUser.id,content});
+}
+async function sendChatImage(input){
+  const file=input.files[0];if(!file)return;
+  input.value='';
+  const reader=new FileReader();
+  reader.onload=async function(e){
+    const b64=e.target.result;
+    const tempMsg={id:'tmp_'+Date.now(),group_id:currentGroup.id,user_id:currentUser.id,content:null,created_at:new Date().toISOString(),image_url:b64,users:{nickname:currentUser.nickname,photo:currentUser.photo,user_id:currentUser.id}};
+    appendChatMessage(tempMsg);scrollChatBottom();
+    await db.from('messages').insert({group_id:currentGroup.id,user_id:currentUser.id,image_url:b64});
+  };
+  reader.readAsDataURL(file);
+}
+function openMyMenu(){document.getElementById('myMenuSheet').style.display='block'}
+function openSettingsScreen(){
+  document.getElementById('autoEnterToggle').checked=localStorage.getItem('pb_auto_enter')==='true';
+  document.getElementById('settingsScreen').style.display='block';
+}
+function closeMyMenu(){document.getElementById('myMenuSheet').style.display='none'}
+function setAutoEnter(val){localStorage.setItem('pb_auto_enter',val?'true':'false')}
+
+// ── 알림 관리 ──
+function openReminderScreen(){
+  document.getElementById('reminderScreen').style.display='block';
+  loadReminders();
+}
+function closeReminderScreen(){document.getElementById('reminderScreen').style.display='none'}
+function openReminderAdd(){
+  editReminderId=null;
+  document.getElementById('reminderModalTitle').textContent='알림 추가';
+  document.getElementById('remTitle').value='';
+  document.getElementById('remAmount').value='';
+  document.getElementById('remDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('remRepeat').value='none';
+  document.querySelectorAll('#remRepeatSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val==='none')});
+  document.getElementById('remPrevNight').checked=false;
+  document.getElementById('remMorning').checked=true;
+  document.getElementById('remAfternoon').checked=false;
+  showModal('reminderAddModal');
+}
+let editReminderId=null;
+const _reminderData={};
+async function submitReminder(){
+  const title=document.getElementById('remTitle').value.trim();
+  const rawAmount=document.getElementById('remAmount').value.replace(/,/g,'')||null;
+  const date=document.getElementById('remDate').value;
+  const repeat=document.getElementById('remRepeat').value;
+  const prevNight=document.getElementById('remPrevNight').checked;
+  const morning=document.getElementById('remMorning').checked;
+  const afternoon=document.getElementById('remAfternoon').checked;
+  if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
+  if(!prevNight&&!morning&&!afternoon){showToast('알림 시간을 하나 이상 선택해주세요');return}
+  const payload={
+    title,
+    amount:rawAmount?parseInt(rawAmount):null,
+    remind_date:date,repeat_type:repeat,
+    notify_prev_night:prevNight,
+    notify_morning:morning,
+    notify_afternoon:afternoon
+  };
+  if(editReminderId){
+    await db.from('reminders').update(payload).eq('id',editReminderId);
+    showToast('알림이 수정됐어요!');
+  } else {
+    await db.from('reminders').insert({user_id:currentUser.id,...payload});
+    showToast('알림이 추가됐어요!');
+  }
+  editReminderId=null;
+  closeModal('reminderAddModal');loadReminders();
+}
+function openReminderEdit(id){
+  const r=_reminderData[id];if(!r)return;
+  editReminderId=r.id;
+  document.getElementById('reminderModalTitle').textContent='알림 수정';
+  document.getElementById('remTitle').value=r.title||'';
+  document.getElementById('remAmount').value=r.amount?String(r.amount).replace(/\B(?=(\d{3})+(?!\d))/g,','):'';
+  document.getElementById('remDate').value=r.remind_date||'';
+  const rep=r.repeat_type||'none';
+  document.getElementById('remRepeat').value=rep;
+  document.querySelectorAll('#remRepeatSeg .seg-btn').forEach(function(b){b.classList.toggle('active',b.dataset.val===rep)});
+  document.getElementById('remPrevNight').checked=!!r.notify_prev_night;
+  document.getElementById('remMorning').checked=!!r.notify_morning;
+  document.getElementById('remAfternoon').checked=!!r.notify_afternoon;
+  showModal('reminderAddModal');
+}
+async function loadReminders(){
+  const{data}=await db.from('reminders').select('*').eq('user_id',currentUser.id).order('remind_date');
+  Object.keys(_reminderData).forEach(function(k){delete _reminderData[k]});
+  (data||[]).forEach(function(r){_reminderData[r.id]=r});
+  const list=document.getElementById('reminderList');
+  if(!data||!data.length){list.innerHTML='<div style="text-align:center;color:var(--text-sub);padding:40px 0;font-size:14px">등록된 알림이 없어요</div>';return}
+  const repeatLabel={none:'',monthly:'매월 반복',yearly:'매년 반복'};
+  list.innerHTML=data.map(function(r){
+    const times=[];
+    if(r.notify_prev_night)times.push('🌙전날 10시');
+    if(r.notify_morning)times.push('☀️당일 9시');
+    if(r.notify_afternoon)times.push('🌤오후 1시');
+    return'<div style="background:white;border-radius:14px;padding:14px 16px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px">'
+      +'<div style="font-size:24px">🔔</div>'
+      +'<div style="flex:1">'
+        +'<div style="font-size:15px;font-weight:700">'+r.title+'</div>'
+        +'<div style="font-size:13px;color:var(--text-sub);margin-top:3px">'+r.remind_date+(r.amount?'  '+fmt(r.amount)+'원':'')+(r.repeat_type!=='none'?'  '+repeatLabel[r.repeat_type]:'')+'</div>'
+        +(times.length?'<div style="font-size:12px;color:var(--blue);margin-top:3px">'+times.join('  ')+'</div>':'')
+      +'</div>'
+      +'<div style="display:flex;flex-direction:column;gap:6px;flex-shrink:0">'
+      +'<button onclick="openReminderEdit('+r.id+')" style="background:#EFF6FF;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--blue);cursor:pointer;font-weight:700">수정</button>'
+      +'<button onclick="deleteReminder('+r.id+')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+async function deleteReminder(id){
+  if(!confirm('알림을 삭제할까요?'))return;
+  await db.from('reminders').delete().eq('id',id);
+  loadReminders();
+}
+async function checkTodayReminders(){
+  if(!currentUser)return;
+  const today=new Date().toISOString().split('T')[0];
+  const{data}=await db.from('reminders').select('*').eq('user_id',currentUser.id);
+  if(!data||!data.length)return;
+  const todayRems=data.filter(function(r){
+    if(r.remind_date===today)return true;
+    if(r.repeat_type==='monthly'){
+      const remindDay=parseInt(r.remind_date.slice(8));
+      const todayDay=parseInt(today.slice(8));
+      const lastDay=new Date(parseInt(today.slice(0,4)),parseInt(today.slice(5,7)),0).getDate();
+      if(remindDay===todayDay)return true;
+      if(remindDay>lastDay&&todayDay===lastDay)return true;
+    }
+    if(r.repeat_type==='yearly'&&r.remind_date.slice(5)===today.slice(5))return true;
+    return false;
+  });
+  if(!todayRems.length)return;
+  setTimeout(function(){
+    showToast('🔔 오늘 알림 '+todayRems.length+'개: '+todayRems[0].title+(todayRems.length>1?' 외 '+(todayRems.length-1)+'건':''));
+  },1500);
+}
+
+// ── 차용증 ──
+let sigDrawing=false;
+function openIOU(){
+  document.getElementById('iouScreen').style.display='block';
+  document.getElementById('iouCreditorName').value='';
+  document.getElementById('iouCreditorPhone').value='';
+  document.getElementById('iouCreditorAddr').value='';
+  document.getElementById('iouDebtorName').value='';
+  document.getElementById('iouDebtorPhone').value='';
+  document.getElementById('iouDebtorAddr').value='';
+  document.getElementById('iouAmount').value='';
+  document.getElementById('iouRate').value='0';
+  document.getElementById('iouLoanDate').value=new Date().toISOString().split('T')[0];
+  document.getElementById('iouRepayDate').value='';
+  document.getElementById('iouMonthlyInterest').textContent='';
+  document.getElementById('iouLoanBtn').style.display=currentGroup?'block':'none';
+  setTimeout(initSignatureCanvas,100);
+}
+function closeIOU(){document.getElementById('iouScreen').style.display='none'}
+function openDebtRepayment(){
+  document.getElementById('drRepayDate').value=new Date().toISOString().slice(0,10);
+  document.getElementById('debtRepayScreen').style.display='block';
+}
+async function generateDebtRepayment(){
+  const credName=document.getElementById('drCreditorName').value.trim();
+  const credPhone=document.getElementById('drCreditorPhone').value.trim();
+  const credAddr=document.getElementById('drCreditorAddr').value.trim();
+  const debtName=document.getElementById('drDebtorName').value.trim();
+  const debtPhone=document.getElementById('drDebtorPhone').value.trim();
+  const debtAddr=document.getElementById('drDebtorAddr').value.trim();
+  const amount=parseInt(document.getElementById('drAmount').value)||0;
+  const loanDate=document.getElementById('drLoanDate').value;
+  const repayDate=document.getElementById('drRepayDate').value;
+  const note=document.getElementById('drNote').value.trim();
+  if(!credName||!debtName||!amount){showToast('채권자, 채무자 이름과 금액을 입력해주세요');return;}
+  const repayDateStr=repayDate?new Date(repayDate).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'}):new Date().toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'});
+  const loanDateStr=loanDate?new Date(loanDate).toLocaleDateString('ko-KR',{year:'numeric',month:'long',day:'numeric'}):'';
+  const preview=document.getElementById('iouPreview');
+  preview.innerHTML=
+    '<div style="padding:48px 44px;font-family:\'Pretendard\',sans-serif;color:#111;background:white">'
+    +'<h1 style="text-align:center;font-size:28px;font-weight:900;letter-spacing:6px;margin-bottom:40px;border-bottom:3px solid #111;padding-bottom:16px">채무변제확인서</h1>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:32px;font-size:14px">'
+    +'<tr><td style="width:90px;padding:10px 0;font-weight:700;color:#555;vertical-align:top">채 권 자</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:15px">'+credName+'</strong>'+(credPhone?' &nbsp;'+credPhone:'')+(credAddr?'<br><span style="color:#666;font-size:13px">'+credAddr+'</span>':'')+'</td></tr>'
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555;vertical-align:top">채 무 자</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:15px">'+debtName+'</strong>'+(debtPhone?' &nbsp;'+debtPhone:'')+(debtAddr?'<br><span style="color:#666;font-size:13px">'+debtAddr+'</span>':'')+'</td></tr>'
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555">원 &nbsp;&nbsp;&nbsp;&nbsp; 금</td>'
+    +'<td style="padding:10px 0"><strong style="font-size:16px">금 '+fmt(amount)+'원정 (₩'+fmt(amount)+')</strong></td></tr>'
+    +(loanDateStr?'<tr><td style="padding:10px 0;font-weight:700;color:#555">차 용 일</td><td style="padding:10px 0">'+loanDateStr+'</td></tr>':'')
+    +'<tr><td style="padding:10px 0;font-weight:700;color:#555">변제완료일</td><td style="padding:10px 0">'+repayDateStr+'</td></tr>'
+    +(note?'<tr><td style="padding:10px 0;font-weight:700;color:#555;vertical-align:top">특이사항</td><td style="padding:10px 0">'+note+'</td></tr>':'')
+    +'</table>'
+    +'<div style="background:#F0FDF4;border:1px solid #BBF7D0;border-radius:10px;padding:20px 24px;margin-bottom:36px;font-size:14px;line-height:2">'
+    +'위 채무자 <strong>'+debtName+'</strong>은(는) 채권자 <strong>'+credName+'</strong>에게 위 원금 일체를<br>'
+    +'<strong>'+repayDateStr+'</strong>에 전액 변제 완료하였음을 확인합니다.<br>'
+    +'이로써 본 채권·채무 관계는 소멸됩니다.'
+    +'</div>'
+    +'<div style="display:flex;justify-content:flex-end;margin-bottom:48px">'
+    +'<div style="text-align:center;min-width:180px">'
+    +'<div style="font-size:13px;color:#555;margin-bottom:6px">채권자</div>'
+    +'<div style="font-size:16px;font-weight:700;border-bottom:1px solid #111;padding-bottom:4px;min-width:120px">'+credName+' (인)</div>'
+    +'</div></div>'
+    +'<p style="text-align:center;font-size:13px;color:#555;margin-bottom:4px">'+repayDateStr+'</p>'
+    +'<p style="text-align:center;font-size:11px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:12px;line-height:1.7">본 확인서는 당사자 간 변제 사실을 기록한 문서입니다. 완전한 법적 보호를 위해 공증사무소 방문을 권장합니다.</p>'
+    +'</div>';
+  preview.style.left='0';preview.style.zIndex='-1';
+  showToast('PDF 생성 중...');
+  try{
+    const canvas=await html2canvas(preview,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+    preview.style.left='-9999px';
+    const{jsPDF}=window.jspdf;
+    const pdf=new jsPDF({orientation:'portrait',unit:'mm',format:'a4'});
+    const imgW=210;
+    const imgH=(canvas.height*imgW)/canvas.width;
+    pdf.addImage(canvas.toDataURL('image/png'),'PNG',0,0,imgW,imgH);
+    pdf.save('채무변제확인서_'+debtName+'_'+new Date().toISOString().slice(0,10)+'.pdf');
+    showToast('채무변제확인서 PDF가 저장됐어요!');
+  }catch(e){
+    preview.style.left='-9999px';
+    showToast('저장 실패. 다시 시도해주세요.');
+    console.error(e);
+  }
+}
+function calcMonthlyInterest(){
+  const amt=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const el=document.getElementById('iouMonthlyInterest');
+  el.textContent=(amt>0&&rate>0)?'월 이자: '+fmt(Math.round(amt*rate/100/12))+'원':'';
+}
+function initSignatureCanvas(){
+  const canvas=document.getElementById('signatureCanvas');
+  if(!canvas)return;
+  const ctx=canvas.getContext('2d');
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  ctx.strokeStyle='#1A1A2E';ctx.lineWidth=2;ctx.lineCap='round';
+  function getPos(e){
+    const rect=canvas.getBoundingClientRect();
+    const sx=canvas.width/rect.width,sy=canvas.height/rect.height;
+    const cx=e.touches?e.touches[0].clientX:e.clientX;
+    const cy=e.touches?e.touches[0].clientY:e.clientY;
+    return{x:(cx-rect.left)*sx,y:(cy-rect.top)*sy};
+  }
+  canvas.onmousedown=canvas.ontouchstart=function(e){e.preventDefault();sigDrawing=true;const p=getPos(e);ctx.beginPath();ctx.moveTo(p.x,p.y)};
+  canvas.onmousemove=canvas.ontouchmove=function(e){if(!sigDrawing)return;e.preventDefault();const p=getPos(e);ctx.lineTo(p.x,p.y);ctx.stroke()};
+  canvas.onmouseup=canvas.onmouseleave=canvas.ontouchend=function(){sigDrawing=false};
+}
+function clearSignature(){const c=document.getElementById('signatureCanvas');c.getContext('2d').clearRect(0,0,c.width,c.height)}
+async function generateIOU(){
+  const credName=document.getElementById('iouCreditorName').value.trim();
+  const credPhone=document.getElementById('iouCreditorPhone').value.trim();
+  const credAddr=document.getElementById('iouCreditorAddr').value.trim();
+  const debtName=document.getElementById('iouDebtorName').value.trim();
+  const debtPhone=document.getElementById('iouDebtorPhone').value.trim();
+  const debtAddr=document.getElementById('iouDebtorAddr').value.trim();
+  const amount=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const loanDate=document.getElementById('iouLoanDate').value;
+  const repayDate=document.getElementById('iouRepayDate').value;
+  if(!credName||!debtName||!amount){showToast('채권자·채무자 이름과 금액을 입력해주세요');return}
+  const today=new Date();
+  const todayStr=today.getFullYear()+'년 '+(today.getMonth()+1)+'월 '+today.getDate()+'일';
+  const monthly=rate>0?Math.round(amount*rate/100/12):0;
+  const sigImg=document.getElementById('signatureCanvas').toDataURL('image/png');
+  const row=function(label,val){return'<tr style="border-bottom:1px solid #E5E7EB"><td style="padding:10px 8px;width:80px;color:#6B7280;font-weight:700;white-space:nowrap">'+label+'</td><td style="padding:10px 8px">'+val+'</td></tr>'};
+  const preview=document.getElementById('iouPreview');
+  preview.innerHTML='<div style="padding:32px;background:white;font-family:Arial,sans-serif">'
+    +'<h1 style="text-align:center;font-size:26px;font-weight:900;letter-spacing:8px;margin-bottom:28px;border-bottom:3px solid #1A1A2E;padding-bottom:14px">차 용 증</h1>'
+    +'<p style="font-size:14px;line-height:2;margin-bottom:20px">본인(채무자)은 아래와 같이 금전을 차용함을 확인합니다.</p>'
+    +'<table style="width:100%;border-collapse:collapse;margin-bottom:20px;font-size:14px">'
+      +row('채권자',credName+(credPhone?' / '+credPhone:'')+(credAddr?' / '+credAddr:''))
+      +row('채무자',debtName+(debtPhone?' / '+debtPhone:'')+(debtAddr?' / '+debtAddr:''))
+      +row('차용금액','<strong style="font-size:16px">'+fmt(amount)+'원</strong>')
+      +row('차용일',loanDate||todayStr)
+      +row('이자율','연 '+rate+'%'+(monthly>0?' (월 '+fmt(monthly)+'원)':''))
+      +row('상환일',repayDate||'미정')
+    +'</table>'
+    +'<div style="margin-top:20px;margin-bottom:6px;font-size:14px;font-weight:700">채무자 서명</div>'
+    +'<div style="border:1px solid #E5E7EB;border-radius:8px;padding:8px;margin-bottom:20px;height:90px;display:flex;align-items:center">'
+      +'<img src="'+sigImg+'" style="width:100%;height:80px;object-fit:contain">'
+    +'</div>'
+    +'<p style="text-align:right;font-size:14px;margin-bottom:20px">작성일: '+todayStr+'</p>'
+    +'<p style="font-size:11px;color:#9CA3AF;border-top:1px solid #E5E7EB;padding-top:10px;line-height:1.7">본 차용증은 당사자 간 약정 내용을 기록한 문서로, 법적 효력은 작성 방식 및 상황에 따라 달라질 수 있습니다. 완전한 법적 보호를 원하시는 경우 공증사무소 방문을 권장드립니다.</p>'
+    +'</div>';
+  preview.style.left='0';preview.style.zIndex='-1';
+  showToast('이미지 생성 중...');
+  try{
+    const canvas=await html2canvas(preview,{scale:2,useCORS:true,backgroundColor:'#ffffff'});
+    preview.style.left='-9999px';
+    const link=document.createElement('a');
+    link.download='차용증_'+debtName+'_'+todayStr+'.png';
+    link.href=canvas.toDataURL('image/png');
+    link.click();
+    showToast('차용증이 저장됐어요!');
+  }catch(e){
+    preview.style.left='-9999px';
+    showToast('저장 실패. 다시 시도해주세요.');
+    console.error(e);
+  }
+}
+async function createLoanAccount(){
+  const debtName=document.getElementById('iouDebtorName').value.trim();
+  const amount=parseInt(document.getElementById('iouAmount').value)||0;
+  const rate=parseFloat(document.getElementById('iouRate').value)||0;
+  const loanDate=document.getElementById('iouLoanDate').value;
+  const repayDate=document.getElementById('iouRepayDate').value;
+  if(!debtName||!amount){showToast('채무자 이름과 금액을 입력해주세요');return}
+  if(!confirm('"'+debtName+' 차용" 그룹이 새로 생성되고\n마이너스 통장('+fmt(-amount)+'원)이 만들어집니다.\n계속할까요?'))return;
+  const{data:group}=await db.from('groups').insert({
+    name:debtName+' 차용',type:'friend',
+    invite_code:Math.random().toString(36).slice(2,8).toUpperCase()
+  }).select().single();
+  if(!group){showToast('그룹 생성 실패');return}
+  await db.from('group_members').insert({group_id:group.id,user_id:currentUser.id,role:'admin'});
+  const{data:acc}=await db.from('accounts').insert({
+    group_id:group.id,user_id:null,name:debtName+' 차용',type:'loan',
+    interest_rate:rate,interest_method:'simple',balance:-amount,
+    open_date:loanDate||new Date().toISOString().split('T')[0]
+  }).select().single();
+  if(acc){
+    await db.from('transactions').insert({
+      account_id:acc.id,type:'withdraw',amount:amount,balance_after:-amount,
+      note:'차용 원금 - '+debtName+(repayDate?' (상환일: '+repayDate+')':'')
+    });
+  }
+  closeIOU();
+  showToast('그룹과 대출 통장이 만들어졌어요!');
+  setTimeout(()=>alert('⚠️ 채권자에게 "'+group.name+'" 그룹을 위임하세요.\n그룹 목록 → 해당 그룹 → 관리 → 위임'),500);
+  await checkLoanWarning();
+  await loadGroupSelect();
+}
+
+async function checkLoanWarning(){
+  if(!currentUser)return;
+  const{data:gms}=await db.from('group_members').select('group_id').eq('user_id',currentUser.id).eq('role','admin');
+  if(!gms||!gms.length){hideLoanWarning();return}
+  let hasLoan=false;
+  for(const gm of gms){
+    const{data:accs}=await db.from('accounts').select('id').eq('group_id',gm.group_id).eq('type','loan').limit(1);
+    if(accs&&accs.length){hasLoan=true;break}
+  }
+  const a=document.getElementById('loanWarningAdmin');
+  const m=document.getElementById('loanWarningMember');
+  if(a)a.style.display=hasLoan?'block':'none';
+  if(m)m.style.display=hasLoan?'block':'none';
+}
+function hideLoanWarning(){
+  ['loanWarningAdmin','loanWarningMember'].forEach(function(id){
+    const el=document.getElementById(id);if(el)el.style.display='none';
+  });
+}
+function toggleLoanWarning(e){
+  e.stopPropagation();
+  const t1=document.getElementById('loanWarningTooltip');
+  const t2=document.getElementById('loanWarningTooltipMember');
+  const visible=t1&&t1.style.display==='block';
+  if(t1)t1.style.display=visible?'none':'block';
+  if(t2)t2.style.display=visible?'none':'block';
+}
+document.addEventListener('click',function(){
+  const t1=document.getElementById('loanWarningTooltip');
+  const t2=document.getElementById('loanWarningTooltipMember');
+  if(t1)t1.style.display='none';
+  if(t2)t2.style.display='none';
+});
 </script>
 
   <div id="photoOverlay" onclick="closePhotoOverlay()" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:400;align-items:center;justify-content:center">
-  <img id="photoOverlayImg" style="max-width:90%;max-height:90%;border-radius:50%">
+  <div style="position:relative;display:inline-block" onclick="event.stopPropagation()">
+    <img id="photoOverlayImg" style="max-width:92vw;max-height:85vh;border-radius:10px;object-fit:contain;display:block">
+    <button onclick="downloadOverlayPhoto()" style="position:absolute;bottom:10px;right:10px;background:rgba(0,0,0,0.55);border:none;border-radius:50%;width:40px;height:40px;cursor:pointer;display:flex;align-items:center;justify-content:center">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="white"><circle cx="12" cy="12" r="11" fill="rgba(0,0,0,0.01)"/><path d="M12 3v11M7 10l5 5 5-5M4 20h16" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" fill="none"/></svg>
+    </button>
+  </div>
 </div>
   <input type="file" id="groupPhotoInput" accept="image/*" style="display:none" onchange="handleGroupPhotoUpload(event)">
+
+<script>
+// ── 가계부 ──
+let ledgerData=[];
+let ledgerMonth=new Date();
+let ledgerView='calendar';
+let ledgerCurrentDate='';
+let ledgerMode='normal'; // 'normal' | 'readonly' | 'personal'
+
+async function openLedger(mode){
+  ledgerMode=mode||'normal';
+  ledgerMonth=new Date();
+  document.getElementById('ledgerScreen').style.display='flex';
+  await loadLedgerData();
+  renderLedger();
+}
+async function openPersonalLedger(){
+  ledgerMode='personal';
+  ledgerMonth=new Date();
+  document.getElementById('ledgerScreen').style.display='flex';
+  await loadLedgerData();
+  renderLedger();
+}
+function closeLedger(){document.getElementById('ledgerScreen').style.display='none'}
+
+async function ledgerPrevMonth(){
+  ledgerMonth=new Date(ledgerMonth.getFullYear(),ledgerMonth.getMonth()-1,1);
+  await loadLedgerData();renderLedger();
+}
+async function ledgerNextMonth(){
+  ledgerMonth=new Date(ledgerMonth.getFullYear(),ledgerMonth.getMonth()+1,1);
+  await loadLedgerData();renderLedger();
+}
+
+async function loadLedgerData(){
+  const y=ledgerMonth.getFullYear();
+  const mi=ledgerMonth.getMonth();
+  const lastDay=new Date(y,mi+1,0).getDate();
+  const mm=String(mi+1).padStart(2,'0');
+  const from=y+'-'+mm+'-01';
+  const to=y+'-'+mm+'-'+String(lastDay).padStart(2,'0');
+  let q;
+  if(ledgerMode==='personal'){
+    q=db.from('personal_ledger_entries').select('*').eq('user_id',currentUser.id).gte('date',from).lte('date',to).order('date');
+  } else {
+    q=db.from('ledger_entries').select('*').eq('group_id',currentGroup.id).gte('date',from).lte('date',to).order('date');
+  }
+  const{data,error}=await q;
+  if(error){showToast('로드오류: '+error.message);ledgerData=[];return;}
+  ledgerData=data||[];
+}
+
+function renderLedger(){
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  const titleSuffix=ledgerMode==='personal'?' (내 가계부)':ledgerMode==='readonly'?' (조회)':'';
+  document.getElementById('ledgerMonthTitle').textContent=y+'년 '+(m+1)+'월'+titleSuffix;
+  const total=ledgerData.reduce(function(s,e){return s+(e.amount||0)},0);
+  document.getElementById('ledgerTotal').textContent='이번 달 총 지출: '+fmt(total);
+  const viewMap={Cal:'calendar',Week:'week',List:'list',Mem:'members'};
+  ['Cal','Week','List','Mem'].forEach(function(k){document.getElementById('ldgBtn'+k).className='ldg-view-btn'+(ledgerView===viewMap[k]?' active':'');});
+  if(ledgerView==='calendar')renderLedgerCalendar();
+  else if(ledgerView==='week')renderLedgerWeek();
+  else if(ledgerView==='list')renderLedgerList();
+  else renderLedgerMembers();
+}
+
+function setLedgerView(v){ledgerView=v;renderLedger();}
+
+function renderLedgerCalendar(){
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  const firstDow=new Date(y,m,1).getDay();
+  const daysInMonth=new Date(y,m+1,0).getDate();
+  const todayStr=new Date().toISOString().slice(0,10);
+  const numWeeks=Math.ceil((firstDow+daysInMonth)/7);
+  const byDate={};
+  ledgerData.forEach(function(e){
+    const d=e.date.slice(8,10);
+    if(!byDate[d])byDate[d]=[];
+    byDate[d].push(e);
+  });
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='hidden';
+  content.style.paddingBottom='calc(env(safe-area-inset-bottom,0px) + 8px)';
+  const heads=['일','월','화','수','목','금','토'];
+  let html='<div style="display:grid;grid-template-columns:repeat(7,1fr);grid-template-rows:28px repeat('+numWeeks+',1fr);gap:1px;background:#E5E7EB;height:100%">';
+  heads.forEach(function(d,i){
+    const c=i===0?'color:#EF4444':i===6?'color:#3B82F6':'color:var(--text-sub)';
+    html+='<div class="ldg-cal-head" style="'+c+'">'+d+'</div>';
+  });
+  for(let i=0;i<firstDow;i++)html+='<div class="ldg-cal-cell empty"></div>';
+  for(let d=1;d<=daysInMonth;d++){
+    const ds=y+'-'+String(m+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const items=byDate[String(d).padStart(2,'0')]||[];
+    const dow=(firstDow+d-1)%7;
+    const isToday=ds===todayStr;
+    const dc=dow===0?'color:#EF4444':dow===6?'color:#3B82F6':'';
+    const cellClick=ledgerMode==='readonly'?'':'onclick="openLedgerDay(\''+ds+'\')"';
+    html+='<div class="ldg-cal-cell" '+cellClick+'>';
+    html+='<div class="ldg-cal-dn'+(isToday?' today':'')+'" style="'+dc+'">'+d+'</div>';
+    items.slice(0,3).forEach(function(e){
+      html+='<div class="ldg-cal-item">'+fmt(e.amount)+'</div>';
+    });
+    if(items.length>3)html+='<div class="ldg-cal-item" style="color:var(--blue)">+'+(items.length-3)+'건</div>';
+    html+='</div>';
+  }
+  const trailing=(7-(firstDow+daysInMonth)%7)%7;
+  for(let i=0;i<trailing;i++)html+='<div class="ldg-cal-cell empty"></div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function renderLedgerWeek(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
+  const y=ledgerMonth.getFullYear();
+  const m=ledgerMonth.getMonth();
+  const firstDow=new Date(y,m,1).getDay();
+  const dayNames=['일','월','화','수','목','금','토'];
+  const weekOrd=['첫째','둘째','셋째','넷째','다섯째'];
+  const byDate={};
+  ledgerData.forEach(function(e){
+    if(!byDate[e.date])byDate[e.date]=[];
+    byDate[e.date].push(e);
+  });
+  const byWeek={};
+  Object.keys(byDate).sort().forEach(function(date){
+    const day=parseInt(date.slice(8));
+    const wn=Math.ceil((day+firstDow)/7);
+    if(!byWeek[wn])byWeek[wn]={dates:[],total:0};
+    byWeek[wn].dates.push(date);
+    byWeek[wn].total+=byDate[date].reduce(function(s,e){return s+e.amount},0);
+  });
+  const weeks=Object.keys(byWeek).map(Number).sort();
+  let html='<div style="padding:12px 16px 24px">';
+  weeks.forEach(function(wn){
+    const wk=byWeek[wn];
+    const label=(m+1)+'월 '+(weekOrd[wn-1]||wn+'번째')+' 주';
+    const wid='wk_'+wn;
+    html+='<div style="margin-bottom:8px">';
+    html+='<div class="ldg-week-hdr" onclick="toggleWeek(\''+wid+'\')">'
+      +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+label+'</span>'
+      +'<div style="display:flex;align-items:center;gap:8px">'
+      +'<span style="font-size:13px;font-weight:700;color:var(--red)">'+fmt(wk.total)+'</span>'
+      +'<span id="arr_'+wid+'" style="color:var(--text-sub);font-size:11px;transition:transform 0.2s">▼</span>'
+      +'</div></div>';
+    html+='<div id="'+wid+'" style="display:none;background:white;border-radius:0 0 10px 10px;overflow:hidden">';
+    wk.dates.forEach(function(date){
+      const d=parseInt(date.slice(8));
+      const dow=new Date(date+'T00:00:00').getDay();
+      const items=byDate[date];
+      const dayTotal=items.reduce(function(s,e){return s+e.amount},0);
+      const dc=dow===0?'color:#EF4444':dow===6?'color:#3B82F6':'';
+      html+='<div style="padding:8px 14px;border-top:1px solid #F3F4F6">';
+      html+='<div style="display:flex;justify-content:space-between;margin-bottom:5px">'
+        +'<span style="font-size:13px;font-weight:700;'+dc+'">'+d+'일 ('+dayNames[dow]+')</span>'
+        +'<span style="font-size:12px;color:var(--text-sub)">'+fmt(dayTotal)+'</span>'
+        +'</div>';
+      items.forEach(function(e){
+        html+='<div style="display:flex;justify-content:space-between;padding:3px 0">'
+          +'<div style="font-size:13px">'+(e.alias?'<span class="ldg-alias-tag">'+e.alias+'</span>':'')+e.item+'</div>'
+          +'<span style="font-size:13px;font-weight:700;color:var(--red)">'+fmt(e.amount)+'</span>'
+          +'</div>';
+      });
+      html+='</div>';
+    });
+    html+='</div></div>';
+  });
+  if(!weeks.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+function toggleWeek(id){
+  const el=document.getElementById(id);
+  const arr=document.getElementById('arr_'+id);
+  const open=el.style.display==='none';
+  el.style.display=open?'block':'none';
+  arr.textContent=open?'▲':'▼';
+}
+
+function renderLedgerList(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
+  const byDate={};
+  ledgerData.forEach(function(e){
+    if(!byDate[e.date])byDate[e.date]=[];
+    byDate[e.date].push(e);
+  });
+  const dates=Object.keys(byDate).sort();
+  const dayNames=['일','월','화','수','목','금','토'];
+  let html='<div style="padding:12px 16px 24px">';
+  dates.forEach(function(date){
+    const d=parseInt(date.slice(8));
+    const dow=new Date(date).getDay();
+    const items=byDate[date];
+    const dayTotal=items.reduce(function(s,e){return s+e.amount},0);
+    html+='<div style="margin-bottom:12px">';
+    const rowClick=ledgerMode==='readonly'?'':'onclick="openLedgerDay(\''+date+'\')"';
+    html+='<div class="ldg-row-date" '+rowClick+'>'
+      +'<span style="font-size:14px;font-weight:700;color:var(--blue)">'+d+'일 ('+dayNames[dow]+')</span>'
+      +'<span style="font-size:13px;color:var(--text-sub)">'+fmt(dayTotal)+'</span>'
+      +'</div>';
+    html+='<div style="background:white;border-radius:0 0 10px 10px;overflow:hidden">';
+    items.forEach(function(e){
+      html+='<div class="ldg-row-item">'
+        +'<div>'+(e.alias?'<span class="ldg-alias-tag">'+e.alias+'</span>':'')+e.item+'</div>'
+        +'<span style="font-size:14px;font-weight:700;color:var(--red)">'+fmt(e.amount)+'</span>'
+        +'</div>';
+    });
+    html+='</div></div>';
+  });
+  if(!dates.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function renderLedgerMembers(){
+  const content=document.getElementById('ledgerContent');
+  content.style.overflow='auto';content.style.paddingBottom='';
+  const byAlias={};
+  ledgerData.forEach(function(e){
+    const k=e.alias||'공통';
+    byAlias[k]=(byAlias[k]||0)+e.amount;
+  });
+  const entries=Object.entries(byAlias).sort(function(a,b){return b[1]-a[1]});
+  const total=ledgerData.reduce(function(s,e){return s+e.amount},0);
+  let html='<div style="padding:16px;display:flex;flex-direction:column;gap:10px">';
+  entries.forEach(function(pair){
+    const alias=pair[0],amount=pair[1];
+    const pct=total>0?Math.round(amount/total*100):0;
+    html+='<div style="background:white;border-radius:14px;padding:16px;box-shadow:var(--shadow)">'
+      +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">'
+      +'<span style="font-size:15px;font-weight:700">'+alias+'</span>'
+      +'<span style="font-size:16px;font-weight:900;color:var(--red)">'+fmt(amount)+'</span>'
+      +'</div>'
+      +'<div style="background:#F3F4F6;border-radius:99px;height:6px;overflow:hidden">'
+      +'<div style="background:var(--blue);height:100%;width:'+pct+'%;border-radius:99px"></div>'
+      +'</div>'
+      +'<div style="text-align:right;font-size:11px;color:var(--text-sub);margin-top:4px">'+pct+'%</div>'
+      +'</div>';
+  });
+  if(!entries.length)html+='<div style="text-align:center;padding:60px 0;color:var(--text-sub)">이번 달 지출 내역이 없어요</div>';
+  html+='</div>';
+  document.getElementById('ledgerContent').innerHTML=html;
+}
+
+function openLedgerDay(date){
+  ledgerCurrentDate=date;
+  const d=new Date(date+'T00:00:00');
+  const dayNames=['일','월','화','수','목','금','토'];
+  document.getElementById('ledgerDayTitle').textContent=(d.getMonth()+1)+'월 '+d.getDate()+'일 ('+dayNames[d.getDay()]+')';
+  const existing=ledgerData.filter(function(e){return e.date===date});
+  const rowsEl=document.getElementById('ledgerDayRows');
+  rowsEl.innerHTML='';
+  if(existing.length){existing.forEach(function(e){addLedgerRow(e)});}
+  else{for(let i=0;i<5;i++)addLedgerRow();}
+  document.getElementById('ledgerDayModal').style.display='flex';
+}
+
+function closeLedgerDay(){document.getElementById('ledgerDayModal').style.display='none'}
+
+function addLedgerRow(entry){
+  const rowsEl=document.getElementById('ledgerDayRows');
+  const div=document.createElement('div');
+  div.className='ldger';
+  div.style.cssText='display:grid;grid-template-columns:65px 1fr 90px 24px;gap:4px;margin-bottom:6px;align-items:center';
+  const inpStyle='border:1px solid #E5E7EB;border-radius:8px;padding:7px 6px;font-size:13px;font-family:inherit;width:100%';
+  div.innerHTML=
+    '<input type="text" placeholder="별칭" value="'+(entry&&entry.alias?entry.alias:'')+'" style="'+inpStyle+'">'
+    +'<input type="text" placeholder="항목명" value="'+(entry&&entry.item?entry.item:'')+'" style="'+inpStyle+'">'
+    +'<input type="text" inputmode="numeric" placeholder="금액" value="'+(entry&&entry.amount?entry.amount.toLocaleString():'')+'" oninput="this.value=this.value.replace(/[^0-9]/g,\'\').replace(/\\B(?=(\\d{3})+(?!\\d))/g,\',\')" style="'+inpStyle+';text-align:right">'
+    +'<button onclick="this.parentElement.remove()" style="background:none;border:none;color:#D1D5DB;font-size:18px;cursor:pointer;padding:0;line-height:1;text-align:center">✕</button>';
+  rowsEl.appendChild(div);
+}
+
+async function saveLedgerDay(){
+  const rows=document.querySelectorAll('#ledgerDayRows .ldger');
+  const entries=[];
+  rows.forEach(function(row){
+    const inp=row.querySelectorAll('input');
+    const alias=inp[0].value.trim();
+    const item=inp[1].value.trim();
+    const amount=parseInt(inp[2].value.replace(/,/g,''))||0;
+    if(item&&amount>0)entries.push({alias:alias||null,item,amount});
+  });
+  if(ledgerMode==='personal'){
+    const{error:delErr}=await db.from('personal_ledger_entries').delete().eq('user_id',currentUser.id).eq('date',ledgerCurrentDate);
+    if(delErr){showToast('오류: '+delErr.message);return;}
+    if(entries.length){
+      const{error:insErr}=await db.from('personal_ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{user_id:currentUser.id,date:ledgerCurrentDate})})).select();
+      if(insErr){showToast('오류: '+insErr.message);return;}
+    }
+  } else {
+    const{error:delErr}=await db.from('ledger_entries').delete().eq('group_id',currentGroup.id).eq('date',ledgerCurrentDate);
+    if(delErr){showToast('오류: '+delErr.message);return;}
+    if(entries.length){
+      const{error:insErr}=await db.from('ledger_entries').insert(entries.map(function(e){return Object.assign({},e,{group_id:currentGroup.id,date:ledgerCurrentDate})})).select();
+      if(insErr){showToast('오류: '+insErr.message);return;}
+    }
+  }
+  closeLedgerDay();
+  await loadLedgerData();
+  renderLedger();
+  showToast('저장됐어요!');
+}
+</script>
 </body>
 </html>
