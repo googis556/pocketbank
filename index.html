@@ -3487,12 +3487,8 @@ function gcSelectDay(d){gcSelectedDay=d;renderGcCalendar()}
 
 function gcClickDay(dateStr,d){
   const dayEvents=gcEvents.filter(function(e){return e.event_date===dateStr});
-  if(dayEvents.length===0){
-    gcSelectedDay=d;
-    openGroupEventAdd(dateStr);
-    return;
-  }
   gcSelectedDay=d;
+  if(dayEvents.length===0){openGroupEventAdd(dateStr);return}
   const canDel=function(e){return currentUser&&(e.user_id===currentUser.id||(currentGM&&currentGM.role==='admin'))};
   const parts=dateStr.split('-');
   const label=parts[0]+'년 '+parseInt(parts[1])+'월 '+parseInt(parts[2])+'일';
@@ -3508,8 +3504,7 @@ function gcClickDay(dateStr,d){
         +'<div style="font-size:12px;color:var(--text-sub);margin-top:2px">'+(e.users?e.users.nickname:'')+'</div></div>'
         +(canDel(e)?'<button onclick="deleteGroupEvent(\''+e.id+'\')" style="background:#FEE2E2;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>':'')
       +'</div>';
-    }).join('')
-  +'</div>';
+    }).join('')+'</div>';
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center';
   overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay)};
@@ -3532,11 +3527,9 @@ function openGroupEventAdd(dateStr){
   gcEditEventId=null;
   document.getElementById('groupEventModalTitle').textContent='일정 추가';
   document.getElementById('gcEvTitle').value='';
-  if(!dateStr){
-    dateStr=gcSelectedDay
-      ?(gcYear+'-'+String(gcMonth+1).padStart(2,'0')+'-'+String(gcSelectedDay).padStart(2,'0'))
-      :new Date().toISOString().split('T')[0];
-  }
+  if(!dateStr) dateStr=gcSelectedDay
+    ?(gcYear+'-'+String(gcMonth+1).padStart(2,'0')+'-'+String(gcSelectedDay).padStart(2,'0'))
+    :new Date().toISOString().split('T')[0];
   document.getElementById('gcEvDate').value=dateStr;
   document.getElementById('gcEvColor').value='#1A73E8';
   document.querySelectorAll('.gc-color-btn').forEach(function(b,i){b.style.border=i===0?'3px solid #1A1A2E':'3px solid transparent'});
