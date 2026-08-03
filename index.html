@@ -3453,7 +3453,7 @@ async function checkTodayReminders(){
 
 // ── 그룹 공유 달력 ──
 let gcYear=new Date().getFullYear(),gcMonth=new Date().getMonth();
-let gcEvents=[],gcSelectedDay=null,gcEditEventId=null;
+let gcEvents=[],gcSelectedDay=null,gcEditEventId=null,gcDayOverlay=null;
 
 function openGroupCalendar(){
   document.getElementById('groupCalScreen').style.display='flex';
@@ -3518,34 +3518,39 @@ function renderGcCalendar(){
 
 function gcSelectDay(d){gcSelectedDay=d;renderGcCalendar()}
 
+function gcCloseDaySheet(){if(gcDayOverlay&&document.body.contains(gcDayOverlay)){document.body.removeChild(gcDayOverlay);gcDayOverlay=null;}}
 function gcClickDay(dateStr,d){
+  gcCloseDaySheet();
   const dayEvents=gcEvents.filter(function(e){return e.event_date===dateStr});
   gcSelectedDay=d;
   if(dayEvents.length===0){openGroupEventAdd(dateStr);return}
-  const canDel=function(e){return currentUser&&(e.user_id===currentUser.id||(currentGM&&currentGM.role==='admin'))};
+  const canEdit=function(e){return currentUser&&(e.user_id===currentUser.id||(currentGM&&currentGM.role==='admin'))};
   const parts=dateStr.split('-');
   const label=parts[0]+'년 '+parseInt(parts[1])+'월 '+parseInt(parts[2])+'일';
   const html='<div style="padding:16px">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
       +'<div style="font-size:15px;font-weight:700">'+label+'</div>'
-      +'<button onclick="openGroupEventAdd(\''+dateStr+'\')" style="background:var(--blue);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:13px;cursor:pointer;font-weight:700">+ 추가</button>'
+      +'<button onclick="gcCloseDaySheet();openGroupEventAdd(\''+dateStr+'\')" style="background:var(--blue);border:none;color:white;padding:5px 12px;border-radius:10px;font-size:13px;cursor:pointer;font-weight:700">+ 추가</button>'
     +'</div>'
     +dayEvents.map(function(e){
+      const editBtn=canEdit(e)?'<button onclick="openGroupEventEdit(\''+e.id+'\',\''+e.title.replace(/'/g,"\\'")+'\',\''+e.event_date+'\',\''+e.color+'\')" style="background:#E8F0FE;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--blue);cursor:pointer;font-weight:700">수정</button>':'';
+      const delBtn=canEdit(e)?'<button onclick="gcCloseDaySheet();deleteGroupEvent(\''+e.id+'\')" style="background:#FEE2E2;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>':'';
       return'<div style="background:white;border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;margin-bottom:8px">'
         +'<div style="width:8px;height:40px;border-radius:4px;background:'+e.color+';flex-shrink:0"></div>'
         +'<div style="flex:1"><div style="font-size:15px;font-weight:700">'+e.title+'</div>'
         +'<div style="font-size:12px;color:var(--text-sub);margin-top:2px">'+(e.users?e.users.nickname:'')+'</div></div>'
-        +(canDel(e)?'<button onclick="deleteGroupEvent(\''+e.id+'\')" style="background:#FEE2E2;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>':'')
+        +'<div style="display:flex;gap:6px">'+editBtn+delBtn+'</div>'
       +'</div>';
     }).join('')+'</div>';
   const overlay=document.createElement('div');
   overlay.style.cssText='position:fixed;inset:0;z-index:500;background:rgba(0,0,0,0.45);display:flex;align-items:flex-end;justify-content:center';
-  overlay.onclick=function(ev){if(ev.target===overlay)document.body.removeChild(overlay)};
+  overlay.onclick=function(ev){if(ev.target===overlay){gcCloseDaySheet()}};
   const sheet=document.createElement('div');
   sheet.style.cssText='background:#F5F6FA;border-radius:20px 20px 0 0;width:100%;max-width:480px;max-height:70vh;overflow-y:auto;padding-bottom:env(safe-area-inset-bottom,0px)';
   sheet.innerHTML=html;
   overlay.appendChild(sheet);
   document.body.appendChild(overlay);
+  gcDayOverlay=overlay;
 }
 
 function renderGcDayEvents(){}
@@ -3556,6 +3561,19 @@ function pickGcColor(el){
   document.getElementById('gcEvColor').value=el.dataset.color;
 }
 
+function openGroupEventEdit(id,title,date,color){
+  gcCloseDaySheet();
+  gcEditEventId=id;
+  document.getElementById('groupEventModalTitle').textContent='일정 수정';
+  document.getElementById('gcEvTitle').value=title;
+  document.getElementById('gcEvDate').value=date;
+  document.getElementById('gcEvColor').value=color;
+  document.querySelectorAll('.gc-color-btn').forEach(function(b){b.style.border=b.dataset.color===color?'3px solid #1A1A2E':'3px solid transparent'});
+  document.getElementById('gcNotifyPrevNight').checked=false;
+  document.getElementById('gcNotifyMorning').checked=false;
+  document.getElementById('gcNotifyAfternoon').checked=false;
+  showModal('groupEventModal');
+}
 function openGroupEventAdd(dateStr){
   gcEditEventId=null;
   document.getElementById('groupEventModalTitle').textContent='일정 추가';
@@ -3580,6 +3598,16 @@ async function submitGroupEvent(){
   const morning=document.getElementById('gcNotifyMorning').checked;
   const afternoon=document.getElementById('gcNotifyAfternoon').checked;
   if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
+
+  if(gcEditEventId){
+    await db.from('calendar_events').update({title,event_date:date,color}).eq('id',gcEditEventId);
+    closeModal('groupEventModal');
+    showToast('일정이 수정됐어요!');
+    await loadGcEvents();
+    gcSelectedDay=parseInt(date.slice(8));
+    renderGcCalendar();
+    return;
+  }
 
   await db.from('calendar_events').insert({
     group_id:currentGroup.id,
