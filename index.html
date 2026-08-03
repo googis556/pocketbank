@@ -246,6 +246,10 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 /* Toast */
 .toast{position:fixed;bottom:88px;left:50%;transform:translateX(-50%);background:#1A1A2E;color:white;padding:10px 18px;border-radius:20px;font-size:13px;z-index:300;opacity:0;transition:opacity 0.3s;white-space:nowrap;box-shadow:0 4px 14px rgba(0,0,0,0.2)}
 .toast.show{opacity:1}
+.pb-loading{position:fixed;inset:0;z-index:400;display:flex;align-items:center;justify-content:center;background:rgba(248,250,255,0.7);backdrop-filter:blur(2px);opacity:0;pointer-events:none;transition:opacity 0.2s}
+.pb-loading.show{opacity:1;pointer-events:all}
+.pb-spinner{width:44px;height:44px;border:4px solid #E8F0FE;border-top:4px solid #1A73E8;border-radius:50%;animation:pb-spin 0.7s linear infinite}
+@keyframes pb-spin{to{transform:rotate(360deg)}}
 
 /* Refresh FAB */
 .fab-refresh{position:fixed;right:18px;bottom:78px;width:44px;height:44px;background:var(--blue);color:white;border:none;border-radius:50%;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 14px rgba(26,115,232,0.4);z-index:99;transition:transform 0.2s}
@@ -319,6 +323,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 </head>
 <body>
 <div class="toast" id="toast"></div>
+<div class="pb-loading" id="pbLoading"><div class="pb-spinner"></div></div>
 <input type="file" id="photoInput" accept="image/*" style="display:none" onchange="handlePhotoUpload(event)">
 
 <!-- LOGIN -->
@@ -1430,6 +1435,8 @@ function gname(m){return(m&&(m.group_alias||(m.users&&m.users.nickname)||m.nickn
 function localDT(d){const dt=new Date(d);const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}T${p(dt.getHours())}:${p(dt.getMinutes())}`}
 function todayStr(){const dt=new Date();const p=n=>String(n).padStart(2,'0');return`${dt.getFullYear()}-${p(dt.getMonth()+1)}-${p(dt.getDate())}`}
 function showToast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2500)}
+function showLoading(){document.getElementById('pbLoading').classList.add('show')}
+function hideLoading(){document.getElementById('pbLoading').classList.remove('show')}
 function showModal(id){document.getElementById(id).classList.add('active')}
 function closeModal(id){document.getElementById(id).classList.remove('active')}
 function showScreen(id){document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));document.getElementById(id).classList.add('active')}
@@ -1519,6 +1526,7 @@ async function doLogin(){
   const prog=document.getElementById('loginProgress');
   const fill=document.getElementById('loginProgressFill');
   prog.style.display='block';fill.style.width='0%';
+  showLoading();
   let pct=0;const iv=setInterval(()=>{pct=Math.min(pct+8,85);fill.style.width=pct+'%'},100);
   let user=null;
   if(userInfo){
@@ -1535,7 +1543,7 @@ async function doLogin(){
       user=u;
     }
   }
-  clearInterval(iv);
+  clearInterval(iv);hideLoading();
   if(!user){fill.style.width='0%';setTimeout(()=>{prog.style.display='none'},300);showToast('아이디 또는 PIN이 틀렸어요');return}
   // 기존 별칭 가입자라면 user_id를 nickname으로 임시 설정 후 변경 팝업
   if(isLegacy&&!user.user_id){
@@ -1716,6 +1724,8 @@ async function joinGroup(){
 
 // ── Home ──
 async function loadHome(){
+  showLoading();
+  try{
   renderMyAvatar();checkNoticeBadge();checkLoanWarning();
   const isAdmin=currentGM.role==='admin';
   if(isAdmin){
@@ -1765,6 +1775,7 @@ await loadRecentActivity('adminRecentActivity');
     await loadRecentActivity('memberRecentActivity');
     renderMemberAccCards(accs,document.getElementById('memberAccList'));
   }
+  }finally{hideLoading()}
 }
 
 function renderRecentTx(){
@@ -1836,6 +1847,8 @@ function avEl(photo,emoji,size){return photo?'<div class="avatar" style="width:'
 
 // ── Admin: load members or accounts ──
 async function loadAdminScreen(){
+  showLoading();
+  try{
   const isGye=currentGroup.type==='gye';
   if(isGye){
     // 계모임: 통장 목록
@@ -1914,6 +1927,7 @@ if(!currentGroup.invite_code){
       +'</div>';
     container.innerHTML+=inviteHtml;
   }
+  }finally{hideLoading()}
 }
 
 function showAddAccountOrMember(){
@@ -2692,6 +2706,8 @@ async function regenInviteCode(){
   list.innerHTML=html||'<div class="empty"><div class="ei">📭</div>통장이 없어요</div>';
 }
 async function loadAllTransactions(){
+  showLoading();
+  try{
   const{data:accs}=await db.from('accounts').select('id,name,user_id').eq('group_id',currentGroup.id);
   const accIds=(accs||[]).map(a=>a.id);
   const list=document.getElementById('allTxList');
@@ -2708,10 +2724,13 @@ async function loadAllTransactions(){
     const amtStr=isAdj?`→ ${fmt(tx.balance_after)}`:`${isPlus?'+':'-'}${fmt(tx.amount)}`;
     return`<div class="tx-item"><div class="tx-icon">${icon}</div><div class="tx-info"><div class="tx-note">${accMap[tx.account_id]||''} · ${tx.note||label}</div><div class="tx-date">${fmtDate(tx.created_at)}</div></div><div class="tx-right"><div class="tx-amt ${cls}">${amtStr}</div><div class="tx-bal">잔액 ${fmt(tx.balance_after)}</div></div></div>`;
   }).join('');
+  }finally{hideLoading()}
 }
 
 // ── Notice ──
 async function loadNotices(){
+  showLoading();
+  try{
   const[noticesRes,readsRes,likesRes,allLikesRes,allCmtsRes]=await Promise.all([
     db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false}),
     db.from('notice_reads').select('notice_id').eq('user_id',currentUser.id),
@@ -2749,6 +2768,7 @@ const adminBtns=canEdit?'<button class="n-edt" onclick="openEditNotice(\''+n.id+
   }).join('');
   const unread=notices.filter(n=>!readIds.has(n.id));
   if(unread.length){await db.from('notice_reads').upsert(unread.map(n=>({notice_id:n.id,user_id:currentUser.id})),{onConflict:'notice_id,user_id'});await checkNoticeBadge()}
+  }finally{hideLoading()}
 }
 function toggleNoticeExpand(id){document.getElementById(id).classList.toggle('expanded')}
 async function toggleLike(noticeId,isLiked){
@@ -2798,6 +2818,8 @@ async function checkNoticeBadge(){
 
 // ── Links ──
 async function loadLinks(){
+  showLoading();
+  try{
   // 글로벌 링크 로드
   const{data:glinks}=await db.from('global_links').select('*').order('created_at',{ascending:false});
   const isManager=currentUser.nickname==='manager_1';
@@ -2832,6 +2854,7 @@ async function loadLinks(){
         }
       }).join(''):'');
   }
+  }finally{hideLoading()}
 }
 function openAddLink(){editLinkId=null;document.getElementById('linkModalTitle').textContent='링크 추가';document.getElementById('linkIcon').value='🔗';document.getElementById('linkTitleInput').value='';document.getElementById('linkUrl').value='';showModal('linkModal')}
 function openEditLink(id,icon,title,url){editLinkId=id;document.getElementById('linkModalTitle').textContent='링크 수정';document.getElementById('linkIcon').value=icon;document.getElementById('linkTitleInput').value=title;document.getElementById('linkUrl').value=url;showModal('linkModal')}
