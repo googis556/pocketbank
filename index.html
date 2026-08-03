@@ -5,6 +5,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
 <title>포켓뱅크</title>
+<link rel="manifest" href="manifest.json">
 <link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css" rel="stylesheet">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -380,6 +381,7 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       </div>
     </div>
     <div class="header-btns">
+      <button class="hbtn" onclick="openGroupCalendar()" style="background:rgba(255,255,255,0.18)" title="그룹 달력">📅</button>
       <button class="hbtn" onclick="openMyMenu()" style="background:#DC2626">MY</button>
       <button class="hbtn" onclick="changeGroup()">그룹변경</button>
       <button class="hbtn" onclick="logout()">로그아웃</button>
@@ -829,6 +831,65 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
 </div>
 
 <!-- 알림 관리 전체화면 -->
+<!-- 그룹 공유 달력 전체화면 -->
+<div class="full-screen" id="groupCalScreen">
+  <div class="full-screen-header">
+    <button class="full-screen-back" onclick="closeGroupCalendar()">←</button>
+    <span class="full-screen-title">그룹 달력</span>
+    <button onclick="openGroupEventAdd()" style="margin-left:auto;background:rgba(255,255,255,0.2);border:none;color:white;padding:5px 14px;border-radius:12px;font-size:13px;cursor:pointer;font-weight:700">+ 일정</button>
+  </div>
+  <div style="padding:16px">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <button onclick="gcChangeMonth(-1)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px">◀</button>
+      <div style="font-size:17px;font-weight:900" id="gcTitle"></div>
+      <button onclick="gcChangeMonth(1)" style="background:none;border:none;font-size:22px;cursor:pointer;padding:4px 8px">▶</button>
+    </div>
+    <div id="gcGrid" style="display:grid;grid-template-columns:repeat(7,1fr);gap:3px;text-align:center;margin-bottom:12px"></div>
+    <div id="gcEventList"></div>
+  </div>
+</div>
+
+<!-- 그룹 일정 추가/수정 모달 -->
+<div class="modal-overlay" id="groupEventModal">
+  <div class="modal">
+    <h3 id="groupEventModalTitle">일정 추가</h3>
+    <div class="ig"><label>제목</label><input type="text" id="gcEvTitle" placeholder="예: 가족 외식, 월급날"></div>
+    <div class="ig"><label>날짜</label><input type="date" id="gcEvDate" style="width:100%"></div>
+    <div class="ig">
+      <label>색상</label>
+      <div style="display:flex;gap:8px;margin-top:4px">
+        <div class="gc-color-btn" data-color="#1A73E8" onclick="pickGcColor(this)" style="background:#1A73E8;width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid #1A73E8"></div>
+        <div class="gc-color-btn" data-color="#16A34A" onclick="pickGcColor(this)" style="background:#16A34A;width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent"></div>
+        <div class="gc-color-btn" data-color="#DC2626" onclick="pickGcColor(this)" style="background:#DC2626;width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent"></div>
+        <div class="gc-color-btn" data-color="#D97706" onclick="pickGcColor(this)" style="background:#D97706;width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent"></div>
+        <div class="gc-color-btn" data-color="#7C3AED" onclick="pickGcColor(this)" style="background:#7C3AED;width:28px;height:28px;border-radius:50%;cursor:pointer;border:3px solid transparent"></div>
+      </div>
+      <input type="hidden" id="gcEvColor" value="#1A73E8">
+    </div>
+    <div class="ig">
+      <label>구성원 알림 설정</label>
+      <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="gcNotifyPrevNight" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌙 전날 밤 10시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="gcNotifyMorning" checked style="width:18px;height:18px;accent-color:var(--blue)">
+          ☀️ 당일 아침 9시
+        </label>
+        <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
+          <input type="checkbox" id="gcNotifyAfternoon" style="width:18px;height:18px;accent-color:var(--blue)">
+          🌤 당일 오후 1시
+        </label>
+      </div>
+    </div>
+    <div class="modal-btns">
+      <button class="mbtn mbtn-cancel" onclick="closeModal('groupEventModal')">취소</button>
+      <button class="mbtn mbtn-primary" onclick="submitGroupEvent()">저장</button>
+    </div>
+  </div>
+</div>
+
 <div class="full-screen" id="reminderScreen">
   <div class="full-screen-header">
     <button class="full-screen-back" onclick="closeReminderScreen()">←</button>
@@ -3361,6 +3422,161 @@ async function checkTodayReminders(){
   setTimeout(function(){
     showToast('🔔 오늘 알림 '+todayRems.length+'개: '+todayRems[0].title+(todayRems.length>1?' 외 '+(todayRems.length-1)+'건':''));
   },1500);
+}
+
+// ── 그룹 공유 달력 ──
+let gcYear=new Date().getFullYear(),gcMonth=new Date().getMonth();
+let gcEvents=[],gcSelectedDay=null,gcEditEventId=null;
+
+function openGroupCalendar(){
+  document.getElementById('groupCalScreen').style.display='block';
+  gcYear=new Date().getFullYear();gcMonth=new Date().getMonth();
+  loadGcEvents();
+}
+function closeGroupCalendar(){document.getElementById('groupCalScreen').style.display='none'}
+
+async function loadGcEvents(){
+  if(!currentGroup)return;
+  const{data}=await db.from('calendar_events').select('*,users(nickname)').eq('group_id',currentGroup.id).order('event_date');
+  gcEvents=data||[];
+  renderGcCalendar();
+}
+
+function gcChangeMonth(dir){
+  gcMonth+=dir;
+  if(gcMonth>11){gcMonth=0;gcYear++}else if(gcMonth<0){gcMonth=11;gcYear--}
+  gcSelectedDay=null;
+  renderGcCalendar();
+}
+
+function renderGcCalendar(){
+  const today=new Date();
+  document.getElementById('gcTitle').textContent=gcYear+'년 '+(gcMonth+1)+'월';
+  const days=['일','월','화','수','목','금','토'];
+  const firstDay=new Date(gcYear,gcMonth,1).getDay();
+  const lastDate=new Date(gcYear,gcMonth+1,0).getDate();
+
+  let html=days.map(function(d,i){
+    return'<div style="font-size:11px;font-weight:700;padding:4px 0;color:'+(i===0?'#DC2626':i===6?'#1A73E8':'#6B7280')+'">'+d+'</div>';
+  }).join('');
+
+  for(let i=0;i<firstDay;i++) html+='<div></div>';
+
+  for(let d=1;d<=lastDate;d++){
+    const dateStr=gcYear+'-'+String(gcMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+    const dayEvents=gcEvents.filter(function(e){return e.event_date===dateStr});
+    const isToday=today.getFullYear()===gcYear&&today.getMonth()===gcMonth&&today.getDate()===d;
+    const isSelected=gcSelectedDay===d;
+    const dow=new Date(gcYear,gcMonth,d).getDay();
+    const fc=isToday?'white':dow===0?'#DC2626':dow===6?'#1A73E8':'#1A1A2E';
+    const bg=isToday?'var(--blue)':(isSelected?'var(--blue-light)':'none');
+    const dots=dayEvents.slice(0,3).map(function(e){return'<div style="width:5px;height:5px;border-radius:50%;background:'+e.color+';margin:1px auto"></div>'}).join('');
+    html+='<div onclick="gcSelectDay('+d+')" style="padding:5px 2px;border-radius:8px;cursor:pointer;background:'+bg+'">'
+      +'<div style="font-size:13px;font-weight:'+(isToday?'900':'400')+';color:'+fc+'">'+d+'</div>'
+      +dots
+      +'</div>';
+  }
+  document.getElementById('gcGrid').innerHTML=html;
+  if(gcSelectedDay) renderGcDayEvents(gcSelectedDay);
+  else document.getElementById('gcEventList').innerHTML='';
+}
+
+function gcSelectDay(d){
+  gcSelectedDay=d;
+  renderGcCalendar();
+}
+
+function renderGcDayEvents(d){
+  const dateStr=gcYear+'-'+String(gcMonth+1).padStart(2,'0')+'-'+String(d).padStart(2,'0');
+  const dayEvents=gcEvents.filter(function(e){return e.event_date===dateStr});
+  const list=document.getElementById('gcEventList');
+  const dateLabel=gcYear+'년 '+(gcMonth+1)+'월 '+d+'일';
+  if(!dayEvents.length){
+    list.innerHTML='<div style="padding:16px;text-align:center;color:var(--text-sub);font-size:14px">'+dateLabel+'<br>일정이 없어요</div>';
+    return;
+  }
+  list.innerHTML='<div style="font-size:13px;font-weight:700;color:var(--text-sub);margin-bottom:8px">'+dateLabel+'</div>'
+    +dayEvents.map(function(e){
+      const canDel=currentUser&&(e.user_id===currentUser.id||(currentGM&&currentGM.role==='admin'));
+      return'<div style="background:white;border-radius:14px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:12px;margin-bottom:8px">'
+        +'<div style="width:10px;height:44px;border-radius:5px;background:'+e.color+';flex-shrink:0"></div>'
+        +'<div style="flex:1">'
+          +'<div style="font-size:15px;font-weight:700">'+e.title+'</div>'
+          +'<div style="font-size:12px;color:var(--text-sub);margin-top:2px">'+(e.users?e.users.nickname:'')+'</div>'
+        +'</div>'
+        +(canDel?'<button onclick="deleteGroupEvent(\''+e.id+'\')" style="background:#FEE2E2;border:none;padding:6px 10px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>':'')
+      +'</div>';
+    }).join('');
+}
+
+function pickGcColor(el){
+  document.querySelectorAll('.gc-color-btn').forEach(function(b){b.style.border='3px solid transparent'});
+  el.style.border='3px solid #1A1A2E';
+  document.getElementById('gcEvColor').value=el.dataset.color;
+}
+
+function openGroupEventAdd(){
+  gcEditEventId=null;
+  document.getElementById('groupEventModalTitle').textContent='일정 추가';
+  document.getElementById('gcEvTitle').value='';
+  const today=new Date();
+  const dateStr=gcSelectedDay
+    ?(gcYear+'-'+String(gcMonth+1).padStart(2,'0')+'-'+String(gcSelectedDay).padStart(2,'0'))
+    :today.toISOString().split('T')[0];
+  document.getElementById('gcEvDate').value=dateStr;
+  document.getElementById('gcEvColor').value='#1A73E8';
+  document.querySelectorAll('.gc-color-btn').forEach(function(b,i){b.style.border=i===0?'3px solid #1A1A2E':'3px solid transparent'});
+  document.getElementById('gcNotifyPrevNight').checked=false;
+  document.getElementById('gcNotifyMorning').checked=true;
+  document.getElementById('gcNotifyAfternoon').checked=false;
+  showModal('groupEventModal');
+}
+
+async function submitGroupEvent(){
+  const title=document.getElementById('gcEvTitle').value.trim();
+  const date=document.getElementById('gcEvDate').value;
+  const color=document.getElementById('gcEvColor').value;
+  const prevNight=document.getElementById('gcNotifyPrevNight').checked;
+  const morning=document.getElementById('gcNotifyMorning').checked;
+  const afternoon=document.getElementById('gcNotifyAfternoon').checked;
+  if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
+
+  await db.from('calendar_events').insert({
+    group_id:currentGroup.id,
+    user_id:currentUser.id,
+    title,event_date:date,color
+  });
+
+  if(prevNight||morning||afternoon){
+    const{data:members}=await db.from('group_members').select('user_id').eq('group_id',currentGroup.id);
+    if(members&&members.length){
+      const reminders=members.map(function(m){return{
+        user_id:m.user_id,
+        title:'📅 [그룹일정] '+title,
+        remind_date:date,
+        repeat_type:'none',
+        notify_prev_night:prevNight,
+        notify_morning:morning,
+        notify_afternoon:afternoon
+      }});
+      await db.from('reminders').insert(reminders);
+    }
+  }
+
+  closeModal('groupEventModal');
+  showToast('일정이 추가됐어요!');
+  await loadGcEvents();
+  if(date.slice(0,7)===(gcYear+'-'+String(gcMonth+1).padStart(2,'0'))){
+    gcSelectedDay=parseInt(date.slice(8));
+    renderGcCalendar();
+  }
+}
+
+async function deleteGroupEvent(id){
+  if(!confirm('이 일정을 삭제할까요?'))return;
+  await db.from('calendar_events').delete().eq('id',id);
+  showToast('삭제됐어요');
+  await loadGcEvents();
 }
 
 // ── 차용증 ──
