@@ -1716,24 +1716,29 @@ async function joinGroup(){
 
 // ── Home ──
 async function loadHome(){
-  renderMyAvatar();await checkNoticeBadge();checkLoanWarning();
+  renderMyAvatar();checkNoticeBadge();checkLoanWarning();
   const isAdmin=currentGM.role==='admin';
   if(isAdmin){
     document.getElementById('adminName').textContent=currentGM.group_alias||currentUser.nickname;
-    const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
+    const isGye=currentGroup.type==='gye';
+    const queries=[
+      db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin'),
+      db.from('accounts').select('balance,user_id').eq('group_id',currentGroup.id),
+      db.from('accounts').select('id').eq('group_id',currentGroup.id)
+    ];
+    if(isGye) queries.push(db.from('accounts').select('balance').eq('group_id',currentGroup.id).is('user_id',null));
+    const results=await Promise.all(queries);
+    const members=results[0].data||[];
+    const allAccs=results[1].data||[];
+    const accIds=(results[2].data||[]).map(a=>a.id);
     let total=0;const summaries=[];
-    if(members){
-      const{data:allAccs}=await db.from('accounts').select('balance,user_id').eq('group_id',currentGroup.id);
-      members.forEach(function(m){
-        const bal=(allAccs||[]).filter(a=>a.user_id===m.user_id).reduce((s,a)=>s+a.balance,0);
-        total+=bal;summaries.push(gname(m)+': '+fmt(bal));
-      });
-    }
-    // 계모임은 공용 통장 잔액도 합산
-    if(currentGroup.type==='gye'){
-      const{data:gyeAccs}=await db.from('accounts').select('balance').eq('group_id',currentGroup.id).is('user_id',null);
-      const gyeTotal=(gyeAccs||[]).reduce((s,a)=>s+a.balance,0);
-      total+=gyeTotal;
+    members.forEach(function(m){
+      const bal=allAccs.filter(a=>a.user_id===m.user_id).reduce((s,a)=>s+a.balance,0);
+      total+=bal;summaries.push(gname(m)+': '+fmt(bal));
+    });
+    if(isGye){
+      const gyeAccs=results[3].data||[];
+      total+=(gyeAccs).reduce((s,a)=>s+a.balance,0);
     }
     document.getElementById('adminTotal').textContent=fmt(total);
     if(currentGroup.type==='gye'){
@@ -1744,8 +1749,6 @@ async function loadHome(){
     }
     // 최근 거래
     document.getElementById('adminRecentActivity').innerHTML='';
-    const{data:accs}=await db.from('accounts').select('id').eq('group_id',currentGroup.id);
-    const accIds=(accs||[]).map(a=>a.id);
     if(accIds.length){
       const{data:txs}=await db.from('transactions').select('*,accounts(name,user_id,users(nickname))').in('account_id',accIds).order('created_at',{ascending:false}).limit(100);
       recentTxAll=txs||[];recentTxShown=10;
@@ -1869,10 +1872,14 @@ if(!currentGroup.invite_code){
   } else {
     // 가족: 구성원 목록
     document.getElementById('adminScreenTitleText').textContent='구성원 관리';
-    const{data:members}=await db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin');
     const container=document.getElementById('adminContent');
+    const[membersRes,allAccsRes]=await Promise.all([
+      db.from('group_members').select('*,users(*)').eq('group_id',currentGroup.id).neq('role','admin'),
+      db.from('accounts').select('*').eq('group_id',currentGroup.id)
+    ]);
+    const members=membersRes.data;
+    const allAccs=allAccsRes.data;
     if(!members||!members.length){container.innerHTML='<div class="empty"><div class="ei">👥</div>구성원을 추가해주세요</div>';return}
-    const{data:allAccs}=await db.from('accounts').select('*').eq('group_id',currentGroup.id);
     const accsByUser={};
     (allAccs||[]).forEach(a=>{if(!accsByUser[a.user_id])accsByUser[a.user_id]=[];accsByUser[a.user_id].push(a);});
     const cards=members.map(m=>{
@@ -2705,11 +2712,14 @@ async function loadAllTransactions(){
 
 // ── Notice ──
 async function loadNotices(){
-  const{data:notices}=await db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false});
-  const{data:reads}=await db.from('notice_reads').select('notice_id').eq('user_id',currentUser.id);
-  const{data:likes}=await db.from('notice_likes').select('notice_id').eq('user_id',currentUser.id);
-  const{data:allLikes}=await db.from('notice_likes').select('notice_id');
-  const{data:allCmts}=await db.from('notice_comments').select('notice_id');
+  const[noticesRes,readsRes,likesRes,allLikesRes,allCmtsRes]=await Promise.all([
+    db.from('notices').select('*').eq('group_id',currentGroup.id).order('created_at',{ascending:false}),
+    db.from('notice_reads').select('notice_id').eq('user_id',currentUser.id),
+    db.from('notice_likes').select('notice_id').eq('user_id',currentUser.id),
+    db.from('notice_likes').select('notice_id'),
+    db.from('notice_comments').select('notice_id')
+  ]);
+  const notices=noticesRes.data,reads=readsRes.data,likes=likesRes.data,allLikes=allLikesRes.data,allCmts=allCmtsRes.data;
   const readIds=new Set((reads||[]).map(r=>r.notice_id));
   const likedIds=new Set((likes||[]).map(l=>l.notice_id));
   const likeCnt={};(allLikes||[]).forEach(l=>{likeCnt[l.notice_id]=(likeCnt[l.notice_id]||0)+1});
@@ -3071,7 +3081,7 @@ function showNoticePopup(title,content){
 
 // ── Tab Cache ──
 const tabLastLoaded={};
-const CACHE_TTL=30000;
+const CACHE_TTL=120000;
 function isCacheFresh(tab){return tabLastLoaded[tab]&&(Date.now()-tabLastLoaded[tab]<CACHE_TTL);}
 function invalidateTabCache(...tabs){tabs.forEach(t=>delete tabLastLoaded[t]);}
 function clearAllTabCache(){Object.keys(tabLastLoaded).forEach(k=>delete tabLastLoaded[k]);}
