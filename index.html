@@ -3472,11 +3472,22 @@ async function checkTodayReminders(){
 
 // ── 그룹 공유 달력 ──
 let gcYear=new Date().getFullYear(),gcMonth=new Date().getMonth();
-let gcEvents=[],gcSelectedDay=null,gcEditEventId=null,gcDayOverlay=null;
+let gcEvents=[],gcSelectedDay=null,gcEditEventId=null,gcDayOverlay=null,gcSwipeInit=false;
 
 function openGroupCalendar(){
   document.getElementById('groupCalScreen').style.display='flex';
   gcYear=new Date().getFullYear();gcMonth=new Date().getMonth();
+  if(!gcSwipeInit){
+    gcSwipeInit=true;
+    const el=document.getElementById('gcContent');
+    let startY=0,startX=0;
+    el.addEventListener('touchstart',function(e){startY=e.touches[0].clientY;startX=e.touches[0].clientX;},{passive:true});
+    el.addEventListener('touchend',function(e){
+      const dy=e.changedTouches[0].clientY-startY;
+      const dx=e.changedTouches[0].clientX-startX;
+      if(Math.abs(dy)>40&&Math.abs(dy)>Math.abs(dx)*1.2){gcChangeMonth(dy<0?1:-1);}
+    },{passive:true});
+  }
   loadGcEvents();
 }
 function closeGroupCalendar(){document.getElementById('groupCalScreen').style.display='none'}
