@@ -853,7 +853,18 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
   <div class="modal">
     <h3 id="groupEventModalTitle">일정 추가</h3>
     <div class="ig"><label>제목</label><input type="text" id="gcEvTitle" placeholder="예: 가족 외식, 월급날"></div>
-    <div class="ig"><label>날짜</label><input type="date" id="gcEvDate" style="width:100%"></div>
+    <div class="ig">
+      <label>날짜</label>
+      <input type="date" id="gcEvDate" style="width:100%;margin-bottom:8px">
+      <label style="display:flex;align-items:center;gap:8px;font-size:13px;font-weight:500;cursor:pointer;margin-bottom:6px">
+        <input type="checkbox" id="gcMultiDay" onchange="toggleGcEndDate()" style="width:16px;height:16px;accent-color:var(--blue)">
+        여러 날 일정 (기간 설정)
+      </label>
+      <div id="gcEndDateWrap" style="display:none;align-items:center;gap:8px">
+        <span style="font-size:13px;color:var(--text-sub);white-space:nowrap">종료일</span>
+        <input type="date" id="gcEvEndDate" style="flex:1">
+      </div>
+    </div>
     <div class="ig">
       <label>반복 설정</label>
       <div style="display:flex;gap:8px;margin-top:6px">
@@ -3493,12 +3504,21 @@ function renderGcCalendar(){
   const numWeeks=Math.ceil((firstDay+lastDate)/7);
   const curYM=gcYear+'-'+String(gcMonth+1).padStart(2,'0');
   const byDate={};
+  function addToDate(key,e){if(!byDate[key])byDate[key]=[];if(!byDate[key].includes(e))byDate[key].push(e);}
   gcEvents.forEach(function(e){
-    const d=e.event_date.slice(8,10);
+    const endDate=e.end_date||e.event_date;
     if(e.repeat_type==='monthly'){
-      if(!byDate[d])byDate[d]=[];byDate[d].push(e);
+      const sd=parseInt(e.event_date.slice(8));
+      const ed=parseInt(endDate.slice(8));
+      for(let d=sd;d<=Math.min(ed,lastDate);d++) addToDate(String(d).padStart(2,'0'),e);
     }else{
-      if(e.event_date.slice(0,7)===curYM){if(!byDate[d])byDate[d]=[];byDate[d].push(e);}
+      const monthFirst=curYM+'-01';
+      const monthLast=curYM+'-'+String(lastDate).padStart(2,'0');
+      if(e.event_date<=monthLast&&endDate>=monthFirst){
+        const sd=parseInt((e.event_date>monthFirst?e.event_date:monthFirst).slice(8));
+        const ed=parseInt((endDate<monthLast?endDate:monthLast).slice(8));
+        for(let d=sd;d<=ed;d++) addToDate(String(d).padStart(2,'0'),e);
+      }
     }
   });
   const heads=['일','월','화','수','목','금','토'];
@@ -3534,7 +3554,11 @@ function gcCloseDaySheet(){if(gcDayOverlay&&document.body.contains(gcDayOverlay)
 function gcClickDay(dateStr,d){
   gcCloseDaySheet();
   const dayStr=dateStr.slice(8);
-  const dayEvents=gcEvents.filter(function(e){return e.repeat_type==='monthly'?e.event_date.slice(8)===dayStr:e.event_date===dateStr});
+  const dayEvents=gcEvents.filter(function(e){
+    const end=e.end_date||e.event_date;
+    if(e.repeat_type==='monthly') return dayStr>=e.event_date.slice(8)&&dayStr<=end.slice(8);
+    return dateStr>=e.event_date&&dateStr<=end;
+  });
   gcSelectedDay=d;
   if(dayEvents.length===0){openGroupEventAdd(dateStr);return}
   const canEdit=function(e){return currentUser&&(e.user_id===currentUser.id||(currentGM&&currentGM.role==='admin'))};
@@ -3547,12 +3571,16 @@ function gcClickDay(dateStr,d){
     +'</div>'
     +dayEvents.map(function(e){
       const rtype=e.repeat_type||'none';
+      const endDate=e.end_date||e.event_date;
+      const isMulti=e.end_date&&e.end_date!==e.event_date;
       const repeatBadge=rtype==='monthly'?'<span style="font-size:10px;background:#E8F0FE;color:var(--blue);padding:1px 6px;border-radius:6px;margin-left:5px;font-weight:700">🔁 매달</span>':'';
-      const editBtn=canEdit(e)?'<button onclick="openGroupEventEdit(\''+e.id+'\',\''+e.title.replace(/'/g,"\\'")+'\',\''+e.event_date+'\',\''+e.color+'\',\''+rtype+'\')" style="background:#E8F0FE;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--blue);cursor:pointer;font-weight:700">수정</button>':'';
+      const dateBadge=isMulti?'<span style="font-size:11px;color:var(--text-sub);margin-top:2px;display:block">📅 '+e.event_date.slice(5).replace('-','.')+'~'+endDate.slice(5).replace('-','.')+'</span>':'';
+      const editBtn=canEdit(e)?'<button onclick="openGroupEventEdit(\''+e.id+'\',\''+e.title.replace(/'/g,"\\'")+'\',\''+e.event_date+'\',\''+e.color+'\',\''+rtype+'\',\''+(e.end_date||'')+'\')" style="background:#E8F0FE;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--blue);cursor:pointer;font-weight:700">수정</button>':'';
       const delBtn=canEdit(e)?'<button onclick="gcCloseDaySheet();deleteGroupEvent(\''+e.id+'\',\''+rtype+'\')" style="background:#FEE2E2;border:none;padding:5px 9px;border-radius:8px;font-size:12px;color:var(--red);cursor:pointer;font-weight:700">삭제</button>':'';
       return'<div style="background:white;border-radius:12px;padding:12px 14px;box-shadow:var(--shadow);display:flex;align-items:center;gap:10px;margin-bottom:8px">'
-        +'<div style="width:8px;height:40px;border-radius:4px;background:'+e.color+';flex-shrink:0"></div>'
+        +'<div style="width:8px;height:'+(isMulti?'52':'40')+'px;border-radius:4px;background:'+e.color+';flex-shrink:0"></div>'
         +'<div style="flex:1"><div style="font-size:15px;font-weight:700">'+e.title+repeatBadge+'</div>'
+        +dateBadge
         +'<div style="font-size:12px;color:var(--text-sub);margin-top:2px">'+(e.users?e.users.nickname:'')+'</div></div>'
         +'<div style="display:flex;gap:6px">'+editBtn+delBtn+'</div>'
       +'</div>';
@@ -3575,6 +3603,15 @@ function pickGcColor(el){
   el.style.border='3px solid #1A1A2E';
   document.getElementById('gcEvColor').value=el.dataset.color;
 }
+function toggleGcEndDate(){
+  const multi=document.getElementById('gcMultiDay').checked;
+  const wrap=document.getElementById('gcEndDateWrap');
+  wrap.style.display=multi?'flex':'none';
+  if(multi&&!document.getElementById('gcEvEndDate').value){
+    document.getElementById('gcEvEndDate').value=document.getElementById('gcEvDate').value;
+  }
+  if(!multi) document.getElementById('gcEvEndDate').value='';
+}
 function setGcRepeat(val){
   document.getElementById('gcRepeatType').value=val;
   const nb=document.getElementById('gcRbtnNone'),mb=document.getElementById('gcRbtnMonthly');
@@ -3587,7 +3624,7 @@ function setGcRepeat(val){
   }
 }
 
-function openGroupEventEdit(id,title,date,color,repeatType){
+function openGroupEventEdit(id,title,date,color,repeatType,endDate){
   gcCloseDaySheet();
   gcEditEventId=id;
   document.getElementById('groupEventModalTitle').textContent='일정 수정';
@@ -3596,6 +3633,10 @@ function openGroupEventEdit(id,title,date,color,repeatType){
   document.getElementById('gcEvColor').value=color;
   document.querySelectorAll('.gc-color-btn').forEach(function(b){b.style.border=b.dataset.color===color?'3px solid #1A1A2E':'3px solid transparent'});
   setGcRepeat(repeatType||'none');
+  const hasRange=endDate&&endDate!==date;
+  document.getElementById('gcMultiDay').checked=hasRange;
+  document.getElementById('gcEndDateWrap').style.display=hasRange?'flex':'none';
+  document.getElementById('gcEvEndDate').value=endDate||'';
   document.getElementById('gcNotifyPrevNight').checked=false;
   document.getElementById('gcNotifyMorning').checked=false;
   document.getElementById('gcNotifyAfternoon').checked=false;
@@ -3612,6 +3653,9 @@ function openGroupEventAdd(dateStr){
   document.getElementById('gcEvColor').value='#1A73E8';
   document.querySelectorAll('.gc-color-btn').forEach(function(b,i){b.style.border=i===0?'3px solid #1A1A2E':'3px solid transparent'});
   setGcRepeat('none');
+  document.getElementById('gcMultiDay').checked=false;
+  document.getElementById('gcEndDateWrap').style.display='none';
+  document.getElementById('gcEvEndDate').value='';
   document.getElementById('gcNotifyPrevNight').checked=false;
   document.getElementById('gcNotifyMorning').checked=true;
   document.getElementById('gcNotifyAfternoon').checked=false;
@@ -3623,13 +3667,16 @@ async function submitGroupEvent(){
   const date=document.getElementById('gcEvDate').value;
   const color=document.getElementById('gcEvColor').value;
   const repeat_type=document.getElementById('gcRepeatType').value||'none';
+  const multi=document.getElementById('gcMultiDay').checked;
+  const end_date=multi&&document.getElementById('gcEvEndDate').value?document.getElementById('gcEvEndDate').value:null;
+  if(end_date&&end_date<date){showToast('종료일이 시작일보다 빠를 수 없어요');return}
   const prevNight=document.getElementById('gcNotifyPrevNight').checked;
   const morning=document.getElementById('gcNotifyMorning').checked;
   const afternoon=document.getElementById('gcNotifyAfternoon').checked;
   if(!title||!date){showToast('제목과 날짜를 입력해주세요');return}
 
   if(gcEditEventId){
-    await db.from('calendar_events').update({title,event_date:date,color,repeat_type}).eq('id',gcEditEventId);
+    await db.from('calendar_events').update({title,event_date:date,color,repeat_type,end_date}).eq('id',gcEditEventId);
     closeModal('groupEventModal');
     showToast('일정이 수정됐어요!');
     await loadGcEvents();
@@ -3641,7 +3688,7 @@ async function submitGroupEvent(){
   await db.from('calendar_events').insert({
     group_id:currentGroup.id,
     user_id:currentUser.id,
-    title,event_date:date,color,repeat_type
+    title,event_date:date,color,repeat_type,end_date
   });
 
   if(prevNight||morning||afternoon){
