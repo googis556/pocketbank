@@ -2888,7 +2888,7 @@ async function submitLink(){
 }
 function confirmDeleteLink(id){if(!confirm('이 링크를 삭제할까요?'))return;db.from('links').delete().eq('id',id).then(()=>{showToast('삭제됐어요');loadLinks()})}
 
-let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[];
+let calYear=new Date().getFullYear(),calMonth=new Date().getMonth(),calAccId=null,calTxs=[],calSwipeInit=false;
 function openExcelExport(){
   const today=new Date();
   const firstDay=new Date(today.getFullYear(),today.getMonth(),1).toISOString().split('T')[0];
@@ -2936,6 +2936,17 @@ async function downloadExcel(){
 async function openCalendar(){
   calAccId=detailAccount.id;
   calYear=new Date().getFullYear();calMonth=new Date().getMonth();
+  if(!calSwipeInit){
+    calSwipeInit=true;
+    const el=document.getElementById('calGrid');
+    let sy=0,sx=0;
+    el.addEventListener('touchstart',function(e){sy=e.touches[0].clientY;sx=e.touches[0].clientX;},{passive:true});
+    el.addEventListener('touchend',function(e){
+      const dy=e.changedTouches[0].clientY-sy;
+      const dx=e.changedTouches[0].clientX-sx;
+      if(Math.abs(dy)>40&&Math.abs(dy)>Math.abs(dx)*1.2){changeMonth(dy<0?1:-1);}
+    },{passive:true});
+  }
   const{data:txs}=await db.from('transactions').select('*').eq('account_id',calAccId).order('created_at',{ascending:true});
   calTxs=txs||[];
   renderCalendar();
