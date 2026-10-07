@@ -1590,6 +1590,15 @@ async function doLogin(){
     localStorage.removeItem('pb_auto_login_pwd');
   }
   currentUser=user;
+  // 위젯용: access token 저장
+  if(window.Capacitor&&window.Capacitor.isNativePlatform()){
+    try{
+      const{data:{session}}=await db.auth.getSession();
+      if(session&&session.access_token){
+        await window.Capacitor.Plugins.SharedPrefs.set({key:'supabase_access_token',value:session.access_token});
+      }
+    }catch(e){}
+  }
   initFCM();
   if(isLegacy){
     document.getElementById('setUserIdInput').value='';
@@ -1691,6 +1700,10 @@ async function selectGroup(groupId,role){
   const{data:group}=await db.from('groups').select('*').eq('id',groupId).single();
   const{data:gm}=await db.from('group_members').select('*').eq('group_id',groupId).eq('user_id',currentUser.id).single();
   currentGroup=group;currentGM=gm;
+  // 위젯용: 그룹 ID 저장
+  if(window.Capacitor&&window.Capacitor.isNativePlatform()){
+    try{await window.Capacitor.Plugins.SharedPrefs.set({key:'current_group_id',value:String(group.id)});}catch(e){}
+  }
   document.getElementById('groupWrap').style.display='none';
   document.getElementById('mainApp').style.display='block';
   document.getElementById('headerGroupName').textContent=group.name;
