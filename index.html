@@ -3785,6 +3785,19 @@ async function submitGroupEvent(){
     }
   }
 
+  // 즉시 푸시 알림 전송 (백그라운드, 실패해도 무시)
+  try{
+    await db.functions.invoke('send-calendar-notification',{
+      body:{
+        group_id:currentGroup.id,
+        title,
+        event_date:date,
+        sender_name:currentUser.nickname||currentUser.name||'멤버',
+        exclude_user_id:currentUser.id
+      }
+    });
+  }catch(e){console.warn('push err',e);}
+
   closeModal('groupEventModal');
   showToast('일정이 추가됐어요!');
   await loadGcEvents();
