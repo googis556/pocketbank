@@ -888,18 +888,26 @@ body{font-family:'Pretendard',-apple-system,sans-serif;background:var(--bg);colo
       <label>구성원 알림 설정</label>
       <div style="display:flex;flex-direction:column;gap:8px;margin-top:4px">
         <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
-          <input type="checkbox" id="gcNotifyPrevNight" style="width:18px;height:18px;accent-color:var(--blue)">
+          <input type="checkbox" id="gcNotifyPrevNight" onchange="gcNotifyChanged()" style="width:18px;height:18px;accent-color:var(--blue)">
           🌙 전날 밤 10시
         </label>
         <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
-          <input type="checkbox" id="gcNotifyMorning" checked style="width:18px;height:18px;accent-color:var(--blue)">
+          <input type="checkbox" id="gcNotifyMorning" checked onchange="gcNotifyChanged()" style="width:18px;height:18px;accent-color:var(--blue)">
           ☀️ 당일 아침 9시
         </label>
         <label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer">
-          <input type="checkbox" id="gcNotifyAfternoon" style="width:18px;height:18px;accent-color:var(--blue)">
+          <input type="checkbox" id="gcNotifyAfternoon" onchange="gcNotifyChanged()" style="width:18px;height:18px;accent-color:var(--blue)">
           🌤 당일 오후 1시
         </label>
       </div>
+    </div>
+    <div class="ig" id="gcNotifyTargetWrap" style="display:none">
+      <label>알림 대상</label>
+      <div style="display:flex;gap:8px;margin-top:6px">
+        <button id="gcTargetAll" onclick="setGcNotifyTarget('all')" style="flex:1;padding:9px;border-radius:10px;font-size:13px;cursor:pointer;border:2px solid var(--blue);background:var(--blue);color:white;font-family:'Noto Sans KR',sans-serif;font-weight:700">👥 전체</button>
+        <button id="gcTargetSelect" onclick="setGcNotifyTarget('select')" style="flex:1;padding:9px;border-radius:10px;font-size:13px;cursor:pointer;border:2px solid #E5E7EB;background:white;color:var(--text-sub);font-family:'Noto Sans KR',sans-serif;font-weight:700">✅ 직접 선택</button>
+      </div>
+      <div id="gcMemberCheckList" style="display:none;margin-top:10px;display:none;flex-direction:column;gap:8px"></div>
     </div>
     <div class="modal-btns">
       <button class="mbtn mbtn-cancel" onclick="closeModal('groupEventModal')">취소</button>
@@ -3634,6 +3642,48 @@ function toggleGcEndDate(){
   }
   if(!multi) document.getElementById('gcEvEndDate').value='';
 }
+function gcNotifyChanged(){
+  const any=document.getElementById('gcNotifyPrevNight').checked||document.getElementById('gcNotifyMorning').checked||document.getElementById('gcNotifyAfternoon').checked;
+  document.getElementById('gcNotifyTargetWrap').style.display=any?'block':'none';
+}
+function setGcNotifyTarget(val){
+  const ab=document.getElementById('gcTargetAll'),sb=document.getElementById('gcTargetSelect');
+  const list=document.getElementById('gcMemberCheckList');
+  if(val==='select'){
+    ab.style.cssText=ab.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:white;color:var(--text-sub);border:2px solid #E5E7EB');
+    sb.style.cssText=sb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:var(--blue);color:white;border:2px solid var(--blue)');
+    list.style.display='flex';
+  }else{
+    ab.style.cssText=ab.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:var(--blue);color:white;border:2px solid var(--blue)');
+    sb.style.cssText=sb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:white;color:var(--text-sub);border:2px solid #E5E7EB');
+    list.style.display='none';
+  }
+  list.dataset.mode=val;
+}
+async function loadGcMemberList(){
+  const list=document.getElementById('gcMemberCheckList');
+  list.innerHTML='<div style="font-size:12px;color:var(--text-sub)">로딩 중...</div>';
+  const{data:members}=await db.from('group_members').select('user_id,group_alias,users(nickname,photo)').eq('group_id',currentGroup.id);
+  if(!members||!members.length){list.innerHTML='<div style="font-size:12px;color:var(--text-sub)">구성원 없음</div>';return;}
+  list.innerHTML=members.map(function(m){
+    const name=m.group_alias||m.users?.nickname||'?';
+    return'<label style="display:flex;align-items:center;gap:10px;font-size:14px;font-weight:500;cursor:pointer;padding:4px 0">'
+      +'<input type="checkbox" data-uid="'+m.user_id+'" class="gc-member-chk" checked style="width:18px;height:18px;accent-color:var(--blue)">'
+      +name
+      +'</label>';
+  }).join('');
+}
+function getGcNotifyTargetUids(){
+  const list=document.getElementById('gcMemberCheckList');
+  if(!list||list.dataset.mode!=='select') return null; // null = 전체
+  return Array.from(list.querySelectorAll('.gc-member-chk:checked')).map(function(c){return c.dataset.uid});
+}
+function resetGcNotifyTarget(){
+  document.getElementById('gcNotifyTargetWrap').style.display='none';
+  document.getElementById('gcMemberCheckList').style.display='none';
+  document.getElementById('gcMemberCheckList').dataset.mode='all';
+  setGcNotifyTarget('all');
+}
 function setGcRepeat(val){
   document.getElementById('gcRepeatType').value=val;
   const nb=document.getElementById('gcRbtnNone'),mb=document.getElementById('gcRbtnMonthly');
@@ -3662,6 +3712,7 @@ function openGroupEventEdit(id,title,date,color,repeatType,endDate){
   document.getElementById('gcNotifyPrevNight').checked=false;
   document.getElementById('gcNotifyMorning').checked=false;
   document.getElementById('gcNotifyAfternoon').checked=false;
+  resetGcNotifyTarget();loadGcMemberList();
   showModal('groupEventModal');
 }
 function openGroupEventAdd(dateStr){
@@ -3681,6 +3732,7 @@ function openGroupEventAdd(dateStr){
   document.getElementById('gcNotifyPrevNight').checked=false;
   document.getElementById('gcNotifyMorning').checked=true;
   document.getElementById('gcNotifyAfternoon').checked=false;
+  resetGcNotifyTarget();loadGcMemberList();gcNotifyChanged();
   showModal('groupEventModal');
 }
 
@@ -3714,18 +3766,22 @@ async function submitGroupEvent(){
   });
 
   if(prevNight||morning||afternoon){
+    const targetUids=getGcNotifyTargetUids(); // null=전체, 배열=선택
     const{data:members}=await db.from('group_members').select('user_id').eq('group_id',currentGroup.id);
     if(members&&members.length){
-      const reminders=members.map(function(m){return{
-        user_id:m.user_id,
-        title:'📅 [그룹일정] '+title,
-        remind_date:date,
-        repeat_type:'none',
-        notify_prev_night:prevNight,
-        notify_morning:morning,
-        notify_afternoon:afternoon
-      }});
-      await db.from('reminders').insert(reminders);
+      const filtered=targetUids?members.filter(function(m){return targetUids.includes(m.user_id)}):members;
+      if(filtered.length){
+        const reminders=filtered.map(function(m){return{
+          user_id:m.user_id,
+          title:'📅 [그룹일정] '+title,
+          remind_date:date,
+          repeat_type:'none',
+          notify_prev_night:prevNight,
+          notify_morning:morning,
+          notify_afternoon:afternoon
+        }});
+        await db.from('reminders').insert(reminders);
+      }
     }
   }
 
