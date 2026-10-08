@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
 
   try {
-    const { group_id, title, event_date, sender_name, exclude_user_id } = await req.json();
+    const { group_id, title, event_date, sender_name, exclude_user_id, target_uids } = await req.json();
 
     const supabaseUrl = Deno.env.get('SUPABASE_URL')!;
     const serviceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
@@ -68,7 +68,10 @@ Deno.serve(async (req) => {
       return new Response(JSON.stringify({ sent: 0 }), { headers: { ...corsHeaders, 'Content-Type': 'application/json' } });
     }
 
-    const userIds = members.map((m: any) => m.user_id);
+    let userIds = members.map((m: any) => m.user_id);
+    if (target_uids && Array.isArray(target_uids)) {
+      userIds = userIds.filter((id: string) => target_uids.includes(id));
+    }
     const { data: tokens } = await supabase.from('device_tokens').select('token').in('user_id', userIds);
 
     if (!tokens || tokens.length === 0) {
