@@ -3668,7 +3668,7 @@ function setGcNotifyTarget(val){
   sb.style.cssText=sb.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/,val==='select'?on:off);
   list.dataset.mode=val;
   timeWrap.style.display=val==='none'?'none':'block';
-  list2.style.display=val==='select'?'flex':'none';
+  list.style.display=val==='select'?'flex':'none';
 }
 async function loadGcMemberList(){
   const list=document.getElementById('gcMemberCheckList');
