@@ -3661,11 +3661,12 @@ function setGcNotifyTarget(val){
   const nb=document.getElementById('gcTargetNone'),ab=document.getElementById('gcTargetAll'),sb=document.getElementById('gcTargetSelect');
   const list=document.getElementById('gcMemberCheckList');
   const timeWrap=document.getElementById('gcNotifyTimeWrap');
-  const on='border:2px solid var(--blue);background:var(--blue);color:white;';
-  const off='border:2px solid #E5E7EB;background:white;color:var(--text-sub);';
-  nb.style.cssText=nb.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/,val==='none'?on:off);
-  ab.style.cssText=ab.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/,val==='all'?on:off);
-  sb.style.cssText=sb.style.cssText.replace(/border:[^;]+;background:[^;]+;color:[^;]+/,val==='select'?on:off);
+  [nb,ab,sb].forEach(function(btn,i){
+    const active=(['none','all','select'][i]===val);
+    btn.style.background=active?'var(--blue)':'white';
+    btn.style.color=active?'white':'var(--text-sub)';
+    btn.style.border=active?'2px solid var(--blue)':'2px solid #E5E7EB';
+  });
   list.dataset.mode=val;
   timeWrap.style.display=val==='none'?'none':'block';
   list.style.display=val==='select'?'flex':'none';
@@ -3694,13 +3695,13 @@ function resetGcNotifyTarget(){
 function setGcRepeat(val){
   document.getElementById('gcRepeatType').value=val;
   const nb=document.getElementById('gcRbtnNone'),mb=document.getElementById('gcRbtnMonthly');
-  if(val==='monthly'){
-    nb.style.cssText=nb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:white;color:var(--text-sub);border:2px solid #E5E7EB');
-    mb.style.cssText=mb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:var(--blue);color:white;border:2px solid var(--blue)');
-  }else{
-    nb.style.cssText=nb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:var(--blue);color:white;border:2px solid var(--blue)');
-    mb.style.cssText=mb.style.cssText.replace(/background:[^;]+;color:[^;]+;border:[^;]+/,'background:white;color:var(--text-sub);border:2px solid #E5E7EB');
-  }
+  const isMonthly=val==='monthly';
+  nb.style.background=isMonthly?'white':'var(--blue)';
+  nb.style.color=isMonthly?'var(--text-sub)':'white';
+  nb.style.border=isMonthly?'2px solid #E5E7EB':'2px solid var(--blue)';
+  mb.style.background=isMonthly?'var(--blue)':'white';
+  mb.style.color=isMonthly?'white':'var(--text-sub)';
+  mb.style.border=isMonthly?'2px solid var(--blue)':'2px solid #E5E7EB';
 }
 
 function openGroupEventEdit(id,title,date,color,repeatType,endDate){
