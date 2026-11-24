@@ -1,0 +1,611 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<title>여행 일정표</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;700&family=IBM+Plex+Mono:wght@500&display=swap">
+<style>
+:root { padding-top: env(safe-area-inset-top, 0px); }
+body { margin: 0; font-size: 14px; }
+/* Layout: compact header + one scrolling timetable (sticky day heads, sticky hour rail), like a departures board laid on its side */
+:root {
+  --bg: #f3f6f7;
+  --surface: #ffffff;
+  --ink: #13232b;
+  --muted: #5d6f78;
+  --line: #dde5e8;
+  --line-strong: #c4d1d6;
+  --accent: #0b6f6a;
+  --accent-ink: #ffffff;
+  --danger: #b4372f;
+  --c-move: #2f6fd0;  --c-move-bg: #e4eefc;
+  --c-see: #0b8a73;   --c-see-bg: #ddf3ee;
+  --c-eat: #c8641a;   --c-eat-bg: #fcebdc;
+  --c-stay: #6f4fc4;  --c-stay-bg: #ece6fa;
+  --c-shop: #bf3d77;  --c-shop-bg: #fae3ee;
+  --c-etc: #5b6b73;   --c-etc-bg: #e9eef0;
+  --shadow: 0 10px 30px rgba(19,35,43,.18);
+  --font-body: "IBM Plex Sans KR", "Apple SD Gothic Neo", "Malgun Gothic", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+  --hour: 48px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f1a1f; --surface: #16242b; --ink: #e6eef0; --muted: #93a6ad; --line: #24363e; --line-strong: #31474f;
+  --accent: #3cc2b5; --accent-ink: #07211f; --danger: #f07a70;
+  --c-move: #8db6f5; --c-move-bg: #1c2f4a; --c-see: #5fd3bb; --c-see-bg: #143a33;
+  --c-eat: #f3a868; --c-eat-bg: #3d2a19; --c-stay: #b9a2f4; --c-stay-bg: #2c2448;
+  --c-shop: #f08cba; --c-shop-bg: #422237; --c-etc: #a9b8be; --c-etc-bg: #25343a;
+  --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #0f1a1f; --surface: #16242b; --ink: #e6eef0; --muted: #93a6ad; --line: #24363e; --line-strong: #31474f;
+  --accent: #3cc2b5; --accent-ink: #07211f; --danger: #f07a70;
+  --c-move: #8db6f5; --c-move-bg: #1c2f4a; --c-see: #5fd3bb; --c-see-bg: #143a33;
+  --c-eat: #f3a868; --c-eat-bg: #3d2a19; --c-stay: #b9a2f4; --c-stay-bg: #2c2448;
+  --c-shop: #f08cba; --c-shop-bg: #422237; --c-etc: #a9b8be; --c-etc-bg: #25343a;
+  --shadow: 0 10px 30px rgba(0,0,0,.5); color-scheme: dark; }
+
+[hidden] { display: none !important; }
+html, body { height: 100%; }
+body { background: var(--bg); color: var(--ink); font-family: var(--font-body); font-size: 14px; display: flex; flex-direction: column; }
+button, input, select, textarea { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+.top { padding-block: 16px 10px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: flex-end; justify-content: space-between; }
+.title-wrap { min-width: 0; }
+.eyebrow { font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); font-weight: 500; }
+h1 { margin: 2px 0 0; font-size: 22px; font-weight: 700; text-wrap: balance; letter-spacing: -.01em; }
+.dates { color: var(--muted); font-family: var(--font-mono); font-size: 12.5px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.actions { display: flex; flex-wrap: wrap; gap: 8px; }
+.btn { border: 1px solid var(--line-strong); background: var(--surface); padding: 8px 12px; border-radius: 8px; font-weight: 500; display: inline-flex; align-items: center; gap: 6px; }
+.btn:hover { border-color: var(--muted); }
+.btn.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+.btn.danger { color: var(--danger); border-color: transparent; background: transparent; padding-inline: 4px; }
+.btn.danger.armed { background: var(--danger); color: var(--surface); padding-inline: 12px; }
+.btn[disabled] { opacity: .5; cursor: default; }
+
+.notes { padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); padding-block: 0 10px; display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: 12.5px; color: var(--muted); align-items: center; }
+.legend { display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.legend span { display: inline-flex; align-items: center; gap: 5px; }
+.legend i { width: 9px; height: 9px; border-radius: 2px; display: inline-block; }
+.status { margin-left: auto; }
+.status.warn { color: var(--danger); }
+
+.board-wrap { flex: 1; min-height: 0; margin-left: max(16px, env(safe-area-inset-left, 0px)); margin-right: max(16px, env(safe-area-inset-right, 0px)); margin-bottom: max(16px, env(safe-area-inset-bottom, 0px)); border: 1px solid var(--line); border-radius: 12px; background: var(--surface); overflow: auto; position: relative; }
+.board { display: flex; min-width: 100%; width: max-content; position: relative; }
+.rail { position: sticky; left: 0; z-index: 3; background: var(--surface); width: 52px; flex: none; border-right: 1px solid var(--line); }
+.head { position: sticky; top: 0; z-index: 2; height: 52px; background: var(--surface); border-bottom: 1px solid var(--line-strong); display: flex; flex-direction: column; justify-content: center; padding: 0 10px; }
+.rail .head { z-index: 4; }
+.head b { font-size: 13px; font-weight: 700; }
+.head small { font-family: var(--font-mono); font-size: 11.5px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.head.weekend small { color: var(--c-shop); }
+.hours { position: relative; height: calc(var(--hour) * 24); }
+.hours span { position: absolute; right: 8px; font-family: var(--font-mono); font-size: 11px; color: var(--muted); transform: translateY(-50%); font-variant-numeric: tabular-nums; }
+.col { flex: 1 0 clamp(150px, 22vw, 220px); border-right: 1px solid var(--line); }
+.col:last-child { border-right: 0; }
+.body { position: relative; height: calc(var(--hour) * 24); background-image: linear-gradient(to bottom, var(--line) 1px, transparent 1px), linear-gradient(to bottom, color-mix(in srgb, var(--line) 50%, transparent) 1px, transparent 1px); background-size: 100% var(--hour), 100% calc(var(--hour) / 2); background-position: 0 0, 0 calc(var(--hour) / 2); touch-action: pan-x pan-y; }
+.editable .body { cursor: crosshair; }
+
+.ev { position: absolute; border-radius: 6px; padding: 4px 6px 6px; overflow: hidden; border-left: 3px solid var(--ev); background: var(--ev-bg); color: var(--ink); font-size: 12px; line-height: 1.3; cursor: pointer; user-select: none; box-sizing: border-box; }
+.editable .ev { cursor: grab; }
+.ev.dragging { box-shadow: var(--shadow); z-index: 5; cursor: grabbing; opacity: .95; }
+.ev .t { font-family: var(--font-mono); font-size: 10.5px; color: var(--ev); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ev .n { font-weight: 700; overflow-wrap: anywhere; }
+.ev .p { color: var(--muted); font-size: 11px; overflow-wrap: anywhere; }
+.ev .grip { position: absolute; left: 0; right: 0; bottom: 0; height: 8px; cursor: ns-resize; }
+.ev.short .p { display: none; }
+.ev.tiny { padding-top: 1px; }
+.ev.tiny .t { display: none; }
+.ghost { position: absolute; left: 3px; right: 3px; border-radius: 6px; border: 2px dashed var(--accent); background: color-mix(in srgb, var(--accent) 12%, transparent); pointer-events: none; font-family: var(--font-mono); font-size: 11px; color: var(--accent); padding: 3px 6px; box-sizing: border-box; font-variant-numeric: tabular-nums; }
+.cat-move { --ev: var(--c-move); --ev-bg: var(--c-move-bg); }
+.cat-see { --ev: var(--c-see); --ev-bg: var(--c-see-bg); }
+.cat-eat { --ev: var(--c-eat); --ev-bg: var(--c-eat-bg); }
+.cat-stay { --ev: var(--c-stay); --ev-bg: var(--c-stay-bg); }
+.cat-shop { --ev: var(--c-shop); --ev-bg: var(--c-shop-bg); }
+.cat-etc { --ev: var(--c-etc); --ev-bg: var(--c-etc-bg); }
+
+.empty-hint { position: absolute; z-index: 1; top: 70px; left: 70px; right: 16px; max-width: 360px; padding: 12px 14px; border-radius: 10px; background: var(--bg); border: 1px dashed var(--line-strong); color: var(--muted); font-size: 13px; line-height: 1.5; pointer-events: none; }
+
+.scrim { position: fixed; inset: 0; z-index: 20; background: rgba(10,20,25,.42); display: flex; align-items: center; justify-content: center; padding: 16px; }
+.sheet { background: var(--surface); border-radius: 14px; box-shadow: var(--shadow); width: min(440px, 100%); max-height: calc(100% - 32px); overflow: auto; padding: 18px; display: flex; flex-direction: column; gap: 12px; box-sizing: border-box; }
+.sheet h2 { margin: 0; font-size: 17px; }
+.field { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.field > span { font-size: 12px; color: var(--muted); font-weight: 500; }
+.field input, .field select, .field textarea { border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px 10px; background: var(--bg); width: 100%; box-sizing: border-box; }
+.field textarea { resize: vertical; min-height: 56px; }
+.row { display: grid; grid-template-columns: 1.4fr 1fr 1fr; gap: 8px; }
+.row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.cats { display: flex; flex-wrap: wrap; gap: 6px; }
+.cats label { position: relative; }
+.cats input { position: absolute; opacity: 0; inset: 0; }
+.cats span { display: inline-flex; padding: 5px 10px; border-radius: 999px; border: 1px solid var(--line-strong); font-size: 12.5px; cursor: pointer; background: var(--surface); }
+.cats input:checked + span { background: var(--ev-bg); border-color: var(--ev); color: var(--ev); font-weight: 700; }
+.cats input:focus-visible + span { outline: 2px solid var(--accent); outline-offset: 2px; }
+.sheet-foot { display: flex; gap: 8px; align-items: center; margin-top: 4px; }
+.sheet-foot .spacer { flex: 1; }
+.err { color: var(--danger); font-size: 12.5px; min-height: 1em; margin: 0; }
+.toast { position: fixed; z-index: 30; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--ink); color: var(--bg); padding: 9px 14px; border-radius: 8px; font-size: 13px; }
+.copybox { width: 100%; min-height: 160px; box-sizing: border-box; font-family: var(--font-mono); font-size: 12px; border: 1px solid var(--line-strong); border-radius: 8px; padding: 8px; background: var(--bg); }
+@media (max-width: 520px) {
+  h1 { font-size: 19px; }
+  .row { grid-template-columns: 1fr 1fr; }
+  .row .field:first-child { grid-column: 1 / -1; }
+  .status { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) { .ev { transition: box-shadow .15s; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <div class="title-wrap">
+    <div class="eyebrow">여행 일정표</div>
+    <h1 id="tripTitle">새 여행</h1>
+    <div class="dates" id="tripDates"></div>
+  </div>
+  <div class="actions">
+    <button class="btn primary" id="addBtn" type="button">+ 일정 추가</button>
+    <button class="btn" id="settingsBtn" type="button">여행 설정</button>
+    <button class="btn" id="shareBtn" type="button">공유 링크 복사</button>
+    <button class="btn" id="copyBtn" type="button">텍스트로 복사</button>
+  </div>
+</header>
+<div class="notes">
+  <div class="legend" id="legend"></div>
+  <div class="status" id="status">불러오는 중…</div>
+</div>
+<div class="board-wrap" id="boardWrap">
+  <div class="board" id="board"></div>
+</div>
+
+<div class="scrim" id="editor" hidden>
+  <form class="sheet" id="evForm" novalidate>
+    <h2 id="edTitle">일정 추가</h2>
+    <label class="field"><span>제목</span><input id="fTitle" maxlength="80" placeholder="예: 성산일출봉" autocomplete="off"></label>
+    <div class="field"><span>분류</span><div class="cats" id="fCats"></div></div>
+    <div class="row">
+      <label class="field"><span>날짜</span><select id="fDay"></select></label>
+      <label class="field"><span>시작</span><input id="fStart" type="time" step="300"></label>
+      <label class="field"><span>종료</span><input id="fEnd" type="time" step="300"></label>
+    </div>
+    <label class="field"><span>장소</span><input id="fPlace" maxlength="120" placeholder="주소나 장소 이름" autocomplete="off"></label>
+    <label class="field"><span>메모</span><textarea id="fMemo" maxlength="500" placeholder="예약번호, 준비물 등"></textarea></label>
+    <p class="err" id="fErr"></p>
+    <div class="sheet-foot">
+      <button class="btn danger" id="fDelete" type="button" hidden>삭제</button>
+      <div class="spacer"></div>
+      <button class="btn" id="fCancel" type="button">취소</button>
+      <button class="btn primary" id="fSave" type="submit">저장</button>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="settings" hidden>
+  <form class="sheet" id="setForm" novalidate>
+    <h2>여행 설정</h2>
+    <label class="field"><span>여행 이름</span><input id="sTitle" maxlength="60" autocomplete="off"></label>
+    <div class="row2">
+      <label class="field"><span>출발일</span><input id="sStart" type="date"></label>
+      <label class="field"><span>일수</span><input id="sDays" type="number" min="1" max="14" inputmode="numeric"></label>
+    </div>
+    <p class="err" id="sErr"></p>
+    <div class="sheet-foot">
+      <button class="btn danger" id="sClear" type="button">일정 모두 삭제</button>
+      <button class="btn" id="sNew" type="button">새 여행 만들기</button>
+      <div class="spacer"></div>
+      <button class="btn" id="sCancel" type="button">취소</button>
+      <button class="btn primary" type="submit">저장</button>
+    </div>
+  </form>
+</div>
+
+<div class="scrim" id="copySheet" hidden>
+  <div class="sheet">
+    <h2>텍스트로 복사</h2>
+    <p class="err" id="copyMsg" style="color:var(--muted)">자동 복사가 안 됐어요. 아래 텍스트를 길게 눌러 복사하세요.</p>
+    <textarea class="copybox" id="copyText" readonly></textarea>
+    <div class="sheet-foot"><div class="spacer"></div><button class="btn" id="copyClose" type="button">닫기</button></div>
+  </div>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getFirestore, doc, collection, setDoc, deleteDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js";
+
+// pocketbank 사이트와 같은 Firebase 프로젝트 (웹 설정값은 공개용이라 코드에 들어가도 괜찮아요)
+const firebaseConfig = {
+  apiKey: "AIzaSyDyv9Cy7GAUlY78E7P0_sEINjYXlxsoXx4",
+  authDomain: "pocketbank-da202.firebaseapp.com",
+  projectId: "pocketbank-da202",
+  storageBucket: "pocketbank-da202.firebasestorage.app",
+  messagingSenderId: "290510794044",
+  appId: "1:290510794044:web:f3c2d4dba29ab58bdc8239",
+};
+
+(() => {
+  const CATS = [
+    { id: "move", label: "이동" }, { id: "see", label: "관광" }, { id: "eat", label: "식사" },
+    { id: "stay", label: "숙소" }, { id: "shop", label: "쇼핑" }, { id: "etc", label: "기타" },
+  ];
+  const WD = ["일", "월", "화", "수", "목", "금", "토"];
+  const SNAP = 15;
+  const $ = (id) => document.getElementById(id);
+
+  const today = new Date();
+  const iso = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+  let info = { title: "새 여행", start: iso(today), days: 3 };
+  let events = new Map();
+  let canWrite = true;
+  let store = null;
+
+  // ---------- helpers ----------
+  const hhmm = (m) => { m = Math.max(0, Math.min(1440, Math.round(m))); return `${String(Math.floor(m / 60)).padStart(2, "0")}:${String(m % 60).padStart(2, "0")}`; };
+  const parseTime = (s) => { if (!/^\d{2}:\d{2}/.test(s || "")) return null; const [h, m] = s.split(":").map(Number); return h * 60 + m; };
+  const dayDate = (i) => { const [y, mo, d] = info.start.split("-").map(Number); return new Date(y, mo - 1, d + i); };
+  const dayLabel = (i) => { const d = dayDate(i); return `${i + 1}일차 · ${d.getMonth() + 1}/${d.getDate()}(${WD[d.getDay()]})`; };
+  const newId = () => "e" + Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+  const catOf = (c) => CATS.some((x) => x.id === c) ? c : "etc";
+  const clampEv = (e) => ({
+    title: String(e.title || "").slice(0, 80), place: String(e.place || "").slice(0, 120), memo: String(e.memo || "").slice(0, 500),
+    cat: catOf(e.cat), day: Math.max(0, Math.floor(Number(e.day) || 0)),
+    start: Math.max(0, Math.min(1425, Number(e.start) || 0)), end: Math.max(15, Math.min(1440, Number(e.end) || 60)),
+  });
+  let toastTimer;
+  const toast = (msg) => { const t = $("toast"); t.textContent = msg; t.hidden = false; clearTimeout(toastTimer); toastTimer = setTimeout(() => (t.hidden = true), 2200); };
+  const setStatus = (msg, warn) => { const s = $("status"); s.textContent = msg; s.classList.toggle("warn", !!warn); };
+
+  // legend
+  $("legend").innerHTML = CATS.map((c) => `<span class="cat-${c.id}"><i style="background:var(--ev)"></i>${c.label}</span>`).join("");
+  $("fCats").innerHTML = CATS.map((c) => `<label class="cat-${c.id}"><input type="radio" name="cat" value="${c.id}" id="cat-${c.id}"><span>${c.label}</span></label>`).join("");
+
+  // ---------- render ----------
+  const board = $("board");
+  let drag = null; // {mode, id, day, start, end, ...}
+
+  function layoutDay(list) {
+    list.sort((a, b) => a.start - b.start || b.end - a.end);
+    const out = []; let cluster = []; let clusterEnd = -1;
+    const flush = () => {
+      const lanes = [];
+      cluster.forEach((e) => {
+        let lane = lanes.findIndex((end) => end <= e.start);
+        if (lane < 0) { lane = lanes.length; lanes.push(0); }
+        lanes[lane] = e.end; e._lane = lane;
+      });
+      cluster.forEach((e) => { e._lanes = lanes.length; out.push(e); });
+      cluster = [];
+    };
+    list.forEach((e) => { if (e.start >= clusterEnd && cluster.length) flush(); cluster.push(e); clusterEnd = Math.max(clusterEnd, e.end); if (cluster.length === 1) clusterEnd = e.end; });
+    if (cluster.length) flush();
+    return out;
+  }
+
+  function render() {
+    $("tripTitle").textContent = info.title || "새 여행";
+    document.title = info.title ? `${info.title} · 여행 일정표` : "여행 일정표";
+    const last = dayDate(info.days - 1);
+    const first = dayDate(0);
+    $("tripDates").textContent = `${first.getFullYear()}.${first.getMonth() + 1}.${first.getDate()} – ${last.getMonth() + 1}.${last.getDate()} · ${info.days - 1}박 ${info.days}일`;
+    board.classList.toggle("editable", canWrite);
+    $("addBtn").hidden = !canWrite;
+    $("settingsBtn").hidden = !canWrite;
+
+    const hours = Array.from({ length: 23 }, (_, i) => `<span style="top:calc(var(--hour) * ${i + 1})">${String(i + 1).padStart(2, "0")}:00</span>`).join("");
+    let html = `<div class="rail"><div class="head"></div><div class="hours">${hours}</div></div>`;
+    const byDay = Array.from({ length: info.days }, () => []);
+    let outside = 0;
+    for (const [id, e] of events) {
+      let ev = { id, ...e };
+      if (drag && drag.id === id && drag.moved) ev = { ...ev, day: drag.day, start: drag.start, end: drag.end };
+      if (ev.day < info.days) byDay[ev.day].push(ev); else outside++;
+    }
+    for (let d = 0; d < info.days; d++) {
+      const dt = dayDate(d); const wk = dt.getDay() === 0 || dt.getDay() === 6;
+      const evHtml = layoutDay(byDay[d]).map((e) => {
+        const top = (e.start / 60) * 100, h = ((e.end - e.start) / 60) * 100;
+        const w = 100 / e._lanes;
+        const dur = e.end - e.start;
+        const cls = ["ev", "cat-" + e.cat, dur < 45 ? "short" : "", dur < 30 ? "tiny" : "", drag && drag.id === e.id && drag.moved ? "dragging" : ""].join(" ");
+        return `<div class="${cls}" data-id="${e.id}" tabindex="0" role="button" style="top:calc(var(--hour) * ${top / 100});height:calc(var(--hour) * ${h / 100} - 2px);left:calc(${e._lane * w}% + 3px);width:calc(${w}% - 6px)">
+          <div class="t">${hhmm(e.start)}–${hhmm(e.end)}</div><div class="n"></div><div class="p"></div>${canWrite ? '<div class="grip" data-grip="1"></div>' : ""}</div>`;
+      }).join("");
+      const ghost = drag && drag.mode === "create" && drag.day === d
+        ? `<div class="ghost" style="top:calc(var(--hour) * ${drag.start / 60});height:calc(var(--hour) * ${(drag.end - drag.start) / 60})">${hhmm(drag.start)}–${hhmm(drag.end)}</div>` : "";
+      html += `<div class="col" data-day="${d}"><div class="head${wk ? " weekend" : ""}"><b>${d + 1}일차</b><small>${dt.getMonth() + 1}/${dt.getDate()} (${WD[dt.getDay()]})</small></div><div class="body" data-day="${d}">${evHtml}${ghost}</div></div>`;
+    }
+    if (!events.size && canWrite && !drag) html += `<div class="empty-hint">아직 일정이 없어요. 시간표에서 시작 시간부터 끝 시간까지 <b>드래그</b>하거나 (휴대폰은 <b>탭</b>), 위의 <b>+ 일정 추가</b>로 시간을 직접 입력하세요.</div>`;
+    board.innerHTML = html;
+    // fill text safely
+    board.querySelectorAll(".ev").forEach((el) => {
+      const e = events.get(el.dataset.id); if (!e) return;
+      el.querySelector(".n").textContent = e.title || "(제목 없음)";
+      el.querySelector(".p").textContent = e.place ? e.place : "";
+      el.title = `${hhmm(e.start)}–${hhmm(e.end)} ${e.title}${e.place ? " @ " + e.place : ""}`;
+    });
+    if (outside) setStatus(`설정한 일수 밖에 있는 일정 ${outside}개가 숨겨져 있어요. 여행 설정에서 일수를 늘리세요.`, true);
+  }
+
+  // ---------- pointer interactions ----------
+  const minuteAt = (body, clientY) => {
+    const r = body.getBoundingClientRect();
+    const hour = r.height / 24;
+    return ((clientY - r.top) / hour) * 60;
+  };
+  const snap = (m) => Math.round(m / SNAP) * SNAP;
+  const bodyAt = (x, y) => { const el = document.elementFromPoint(x, y); return el && el.closest(".body"); };
+
+  board.addEventListener("pointerdown", (e) => {
+    if (e.button !== 0) return;
+    const evEl = e.target.closest(".ev");
+    const body = e.target.closest(".body");
+    if (!body) return;
+    const day = Number(body.dataset.day);
+    const touch = e.pointerType !== "mouse";
+    if (evEl) {
+      const id = evEl.dataset.id; const ev = events.get(id); if (!ev) return;
+      if (!canWrite || touch) { drag = { mode: "tap", id, x: e.clientX, y: e.clientY }; return; }
+      const grip = e.target.dataset.grip === "1";
+      drag = { mode: grip ? "resize" : "move", id, day: ev.day, start: ev.start, end: ev.end, x: e.clientX, y: e.clientY, offset: minuteAt(body, e.clientY) - ev.start, moved: false, pid: e.pointerId };
+      e.preventDefault();
+      return;
+    }
+    if (!canWrite) return;
+    const m = Math.max(0, Math.min(1425, Math.floor(minuteAt(body, e.clientY) / SNAP) * SNAP));
+    if (touch) { drag = { mode: "tapcreate", day, start: m, x: e.clientX, y: e.clientY }; return; }
+    drag = { mode: "create", day, anchor: m, start: m, end: m + SNAP, x: e.clientX, y: e.clientY, moved: false };
+    e.preventDefault();
+    render();
+  });
+
+  window.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dist = Math.hypot(e.clientX - drag.x, e.clientY - drag.y);
+    if (drag.mode === "tap" || drag.mode === "tapcreate") { if (dist > 8) drag = null; return; }
+    if (dist > 4) drag.moved = true;
+    if (!drag.moved) return;
+    if (drag.mode === "create") {
+      const body = board.querySelector(`.body[data-day="${drag.day}"]`);
+      const m = Math.max(0, Math.min(1440, snap(minuteAt(body, e.clientY))));
+      if (m >= drag.anchor) { drag.start = drag.anchor; drag.end = Math.max(drag.anchor + SNAP, m); }
+      else { drag.start = m; drag.end = drag.anchor + SNAP; }
+    } else if (drag.mode === "move") {
+      const body = bodyAt(e.clientX, e.clientY) || board.querySelector(`.body[data-day="${drag.day}"]`);
+      const ev = events.get(drag.id); if (!ev) { drag = null; return; }
+      const len = ev.end - ev.start;
+      drag.day = Number(body.dataset.day);
+      drag.start = Math.max(0, Math.min(1440 - len, snap(minuteAt(body, e.clientY) - drag.offset)));
+      drag.end = drag.start + len;
+    } else if (drag.mode === "resize") {
+      const body = board.querySelector(`.body[data-day="${drag.day}"]`);
+      drag.end = Math.max(drag.start + SNAP, Math.min(1440, snap(minuteAt(body, e.clientY))));
+    }
+    render();
+    autoScroll(e);
+  });
+
+  const wrap = $("boardWrap");
+  function autoScroll(e) {
+    const r = wrap.getBoundingClientRect();
+    if (e.clientY > r.bottom - 30) wrap.scrollTop += 12; else if (e.clientY < r.top + 70) wrap.scrollTop -= 12;
+  }
+
+  window.addEventListener("pointerup", async () => {
+    if (!drag) return;
+    const d = drag; drag = null;
+    if (d.mode === "tap") { openEditor(d.id); return; }
+    if (d.mode === "tapcreate") { openEditor(null, { day: d.day, start: d.start, end: Math.min(1440, d.start + 60) }); return; }
+    if (d.mode === "create") {
+      render();
+      const range = d.moved ? { start: d.start, end: d.end } : { start: d.anchor, end: Math.min(1440, d.anchor + 60) };
+      openEditor(null, { day: d.day, ...range });
+      return;
+    }
+    const ev = events.get(d.id);
+    if (!ev) { render(); return; }
+    if (!d.moved) { render(); openEditor(d.id); return; }
+    const next = { ...ev, day: d.day, start: d.start, end: d.end };
+    events.set(d.id, next); render();
+    await saveEvent(d.id, next);
+  });
+  window.addEventListener("pointercancel", () => { if (drag) { drag = null; render(); } });
+
+  board.addEventListener("keydown", (e) => {
+    const evEl = e.target.closest(".ev");
+    if (evEl && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); openEditor(evEl.dataset.id); }
+  });
+
+  // ---------- editor ----------
+  let editingId = null;
+  function fillDaySelect(sel, val) {
+    sel.innerHTML = Array.from({ length: info.days }, (_, i) => `<option value="${i}">${dayLabel(i)}</option>`).join("");
+    sel.value = String(Math.min(val, info.days - 1));
+  }
+  function openEditor(id, preset) {
+    editingId = id;
+    const e = id ? events.get(id) : { title: "", place: "", memo: "", cat: "see", ...preset };
+    if (!e) return;
+    $("edTitle").textContent = id ? (canWrite ? "일정 수정" : "일정 보기") : "일정 추가";
+    $("fTitle").value = e.title || "";
+    $("fPlace").value = e.place || "";
+    $("fMemo").value = e.memo || "";
+    fillDaySelect($("fDay"), e.day || 0);
+    $("fStart").value = hhmm(e.start);
+    $("fEnd").value = e.end >= 1440 ? "00:00" : hhmm(e.end);
+    const r = document.querySelector(`input[name="cat"][value="${catOf(e.cat)}"]`); if (r) r.checked = true;
+    $("fErr").textContent = "";
+    const del = $("fDelete"); del.hidden = !id || !canWrite; del.classList.remove("armed"); del.textContent = "삭제";
+    $("fSave").hidden = !canWrite;
+    $("evForm").querySelectorAll("input,select,textarea").forEach((el) => (el.disabled = !canWrite));
+    $("editor").hidden = false;
+    if (canWrite) setTimeout(() => $("fTitle").focus(), 30);
+  }
+  const closeEditor = () => { $("editor").hidden = true; editingId = null; };
+  $("fCancel").onclick = closeEditor;
+  $("editor").addEventListener("pointerdown", (e) => { if (e.target === $("editor")) closeEditor(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape") { closeEditor(); $("settings").hidden = true; $("copySheet").hidden = true; } });
+  $("addBtn").onclick = () => {
+    openEditor(null, { day: 0, start: 540, end: 600 });
+  };
+
+  $("evForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    if (!canWrite) return;
+    const title = $("fTitle").value.trim();
+    const start = parseTime($("fStart").value);
+    let end = parseTime($("fEnd").value);
+    if (end === 0) end = 1440;
+    if (!title) { $("fErr").textContent = "제목을 입력하세요."; $("fTitle").focus(); return; }
+    if (start == null || end == null) { $("fErr").textContent = "시작·종료 시간을 입력하세요."; return; }
+    if (end <= start) { $("fErr").textContent = "종료 시간이 시작 시간보다 늦어야 해요. 자정까지면 종료를 00:00으로 두세요."; return; }
+    const cat = (document.querySelector('input[name="cat"]:checked') || {}).value || "etc";
+    const data = clampEv({ title, place: $("fPlace").value.trim(), memo: $("fMemo").value.trim(), cat, day: Number($("fDay").value), start, end });
+    const id = editingId || newId();
+    events.set(id, data);
+    closeEditor(); render();
+    const ok = await saveEvent(id, data);
+    if (ok) toast(editingId ? "저장했어요" : "일정을 추가했어요");
+  });
+
+  $("fDelete").onclick = async () => {
+    const btn = $("fDelete");
+    if (!btn.classList.contains("armed")) { btn.classList.add("armed"); btn.textContent = "한 번 더 누르면 삭제"; return; }
+    const id = editingId; closeEditor();
+    events.delete(id); render();
+    if (await removeEvent(id)) toast("삭제했어요");
+  };
+
+  // ---------- settings ----------
+  $("settingsBtn").onclick = () => {
+    $("sTitle").value = info.title; $("sStart").value = info.start; $("sDays").value = info.days; $("sErr").textContent = "";
+    const c = $("sClear"); c.classList.remove("armed"); c.textContent = "일정 모두 삭제";
+    $("settings").hidden = false;
+  };
+  $("sCancel").onclick = () => ($("settings").hidden = true);
+  $("settings").addEventListener("pointerdown", (e) => { if (e.target === $("settings")) $("settings").hidden = true; });
+  $("setForm").addEventListener("submit", async (e) => {
+    e.preventDefault();
+    const days = Math.floor(Number($("sDays").value));
+    if (!/^\d{4}-\d{2}-\d{2}$/.test($("sStart").value)) { $("sErr").textContent = "출발일을 선택하세요."; return; }
+    if (!(days >= 1 && days <= 14)) { $("sErr").textContent = "일수는 1~14일 사이로 입력하세요."; return; }
+    info = { title: $("sTitle").value.trim().slice(0, 60) || "새 여행", start: $("sStart").value, days };
+    $("settings").hidden = true; render();
+    if (await saveInfo(info)) toast("여행 설정을 저장했어요");
+  });
+  $("sClear").onclick = async () => {
+    const c = $("sClear");
+    if (!c.classList.contains("armed")) { c.classList.add("armed"); c.textContent = `${events.size}개 모두 삭제할까요? 한 번 더 누르세요`; return; }
+    const ids = [...events.keys()]; events.clear(); $("settings").hidden = true; render();
+    for (const id of ids) await removeEvent(id);
+    toast("모든 일정을 삭제했어요");
+  };
+
+  // ---------- copy ----------
+  function asText() {
+    const lines = [`[${info.title}] ${$("tripDates").textContent}`];
+    for (let d = 0; d < info.days; d++) {
+      const list = [...events.values()].filter((e) => e.day === d).sort((a, b) => a.start - b.start);
+      lines.push("", dayLabel(d));
+      if (!list.length) lines.push("  (일정 없음)");
+      list.forEach((e) => {
+        const cat = CATS.find((c) => c.id === e.cat)?.label || "기타";
+        lines.push(`  ${hhmm(e.start)}–${hhmm(e.end)}  [${cat}] ${e.title}${e.place ? "  @ " + e.place : ""}`);
+        if (e.memo) lines.push(`      ${e.memo.replace(/\n/g, " ")}`);
+      });
+    }
+    return lines.join("\n");
+  }
+  $("copyBtn").onclick = () => {
+    const text = asText();
+    const fallback = () => { $("copyText").value = text; $("copySheet").hidden = false; setTimeout(() => $("copyText").select(), 30); };
+    try { navigator.clipboard.writeText(text).then(() => toast("일정을 텍스트로 복사했어요. 카톡이나 메모에 붙여넣으세요"), fallback); } catch { fallback(); }
+  };
+  $("copyClose").onclick = () => ($("copySheet").hidden = true);
+
+  // ---------- share link ----------
+  function randomId() {
+    const a = new Uint8Array(12); crypto.getRandomValues(a);
+    return Array.from(a, (b) => "abcdefghijkmnpqrstuvwxyz23456789"[b % 32]).join("");
+  }
+  let tripId = location.hash.slice(1);
+  if (!/^[a-z0-9]{12,40}$/.test(tripId)) { tripId = randomId(); history.replaceState(null, "", "#" + tripId); }
+  window.addEventListener("hashchange", () => location.reload());
+  $("sNew").onclick = () => { location.hash = randomId(); };
+
+  $("shareBtn").onclick = () => {
+    const url = location.href;
+    const fallback = () => { $("copyText").value = url; $("copyMsg").textContent = "아래 링크를 길게 눌러 복사하세요. 링크를 아는 사람은 로그인 없이 함께 편집할 수 있어요."; $("copySheet").hidden = false; setTimeout(() => $("copyText").select(), 30); };
+    try { navigator.clipboard.writeText(url).then(() => toast("공유 링크를 복사했어요. 받은 사람은 로그인 없이 함께 편집할 수 있어요"), fallback); } catch { fallback(); }
+  };
+
+  // ---------- storage (Firestore: trips/<tripId>, trips/<tripId>/events/<id>) ----------
+  let fs = null;
+  try { fs = getFirestore(initializeApp(firebaseConfig)); } catch (err) { console.error(err); }
+  const tripRef = () => doc(fs, "trips", tripId);
+  const evRef = (id) => doc(fs, "trips", tripId, "events", id);
+
+  async function saveEvent(id, data) {
+    if (!fs) return true;
+    try { await setDoc(evRef(id), { ...data, updatedAt: Date.now() }); return true; }
+    catch (err) { return writeFailed(err); }
+  }
+  async function removeEvent(id) {
+    if (!fs) return true;
+    try { await deleteDoc(evRef(id)); return true; }
+    catch (err) { return writeFailed(err); }
+  }
+  async function saveInfo(data) {
+    if (!fs) return true;
+    try { await setDoc(tripRef(), { ...data, updatedAt: Date.now() }); return true; }
+    catch (err) { return writeFailed(err); }
+  }
+  function writeFailed(err) {
+    console.error(err);
+    if (err && err.code === "permission-denied") setStatus("저장이 거부됐어요. Firestore 보안 규칙을 확인하세요.", true);
+    else toast("저장하지 못했어요. 인터넷 연결을 확인하고 다시 해보세요.");
+    return false;
+  }
+
+  function scrollToMorning() {
+    const first = [...events.values()].reduce((m, e) => Math.min(m, e.start), 540);
+    const hourPx = board.querySelector(".hours").getBoundingClientRect().height / 24;
+    wrap.scrollTop = Math.max(0, (Math.min(first, 480) / 60) * hourPx - 8);
+  }
+
+  render();
+  scrollToMorning();
+
+  if (!fs) { setStatus("저장소에 연결하지 못했어요. 지금은 이 화면에서만 보입니다.", true); return; }
+  const loaded = { info: false, events: false };
+  const timer = setTimeout(() => { if (!loaded.events) setStatus("일정을 아직 불러오지 못했어요. 인터넷 연결을 확인하세요.", true); }, 10000);
+  let firstEvents = true;
+  const done = () => {
+    if (loaded.events && loaded.info) { clearTimeout(timer); setStatus("실시간 공유 중 · 링크를 받은 사람과 함께 편집돼요", false); }
+  };
+  const failed = (err) => {
+    console.error(err); clearTimeout(timer);
+    setStatus(err && err.code === "permission-denied" ? "일정을 읽을 권한이 없어요. Firestore 보안 규칙을 확인하세요." : "실시간 연결이 끊겼어요. 새로고침하세요.", true);
+  };
+  onSnapshot(tripRef(), (snap) => {
+    if (snap.exists()) {
+      const d = snap.data();
+      info = { title: String(d.title || "새 여행").slice(0, 60), start: /^\d{4}-\d{2}-\d{2}$/.test(d.start) ? d.start : info.start, days: Math.max(1, Math.min(14, Math.floor(Number(d.days) || 3))) };
+    }
+    loaded.info = true;
+    if (!drag) render(); done();
+  }, failed);
+  onSnapshot(collection(fs, "trips", tripId, "events"), (snap) => {
+    const m = new Map();
+    snap.docs.forEach((d) => m.set(d.id, clampEv(d.data())));
+    events = m;
+    loaded.events = true;
+    if (!drag) render();
+    if (firstEvents && snap.size) { firstEvents = false; scrollToMorning(); }
+    done();
+  }, failed);
+})();
+</script>
+</body>
+</html>
